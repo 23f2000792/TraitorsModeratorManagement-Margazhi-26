@@ -117,18 +117,18 @@ export const useGameState = () => {
     }, durationSeconds * 1000);
   };
 
-  const submitVote = (outcome: 'caught' | 'not-caught', votedOut: House | null) => {
+  const submitVote = (outcome: 'caught' | 'not-caught', votedOutValue: string | null) => {
     if (currentRound.phase !== 'vote') {
       toast({ title: 'Error', description: 'Not in voting phase.', variant: 'destructive' });
       return;
     }
     
+    const votedOut = votedOutValue === 'none' ? null : votedOutValue as House | null;
+
     let newEliminatedHouses = [...gameState.eliminatedHouses];
 
     if (currentRound.name.includes('Semi-Final')) {
-        // As per rules: if Traitor House is identified by more than 50% voters (except the Traitor House) -> Eliminated
-        // In a 6-house semi-final, there are 5 non-traitor houses.
-        // The moderator directly tells us if the traitor was 'caught'. We just enforce the elimination.
+        // Moderator determines if traitor is caught based on > 50% of non-traitor votes.
         if (outcome === 'caught' && currentRound.traitorHouse) {
             if (!newEliminatedHouses.includes(currentRound.traitorHouse)) {
                 newEliminatedHouses.push(currentRound.traitorHouse);
@@ -188,25 +188,19 @@ export const useGameState = () => {
   const endRound = () => {
     updateCurrentRound({ locked: true });
 
-    // Logic for advancing to the next round or ending the game
     const currentRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName);
     const isLastSemiFinal = gameState.currentRoundName === 'Semi-Final 2';
 
-    if (isLastSemiFinal) {
-        // After semi-final 2, determine who goes to the final.
-        const semi1 = gameState.rounds['Semi-Final 1'];
-        const semi2 = gameState.rounds['Semi-Final 2'];
-
-        const semi1Survivors = semi1.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
-        const semi2Survivors = semi2.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
+    if (isLastSemiFinal && currentRound.locked) {
+        const semi1Survivors = gameState.rounds['Semi-Final 1'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
+        const semi2Survivors = gameState.rounds['Semi-Final 2'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
         
-        // Take top 3 from each.
         const finalists = [...semi1Survivors.slice(0,3), ...semi2Survivors.slice(0,3)];
         const eliminatedForAllTime = HOUSES.filter(h => !finalists.includes(h));
         
         setGameState(prev => ({
             ...prev,
-            eliminatedHouses: eliminatedForAllTime,
+            eliminatedHouses: [...new Set([...prev.eliminatedHouses, ...eliminatedForAllTime])],
             currentRoundName: 'Final',
             rounds: {
                 ...prev.rounds,
@@ -216,6 +210,7 @@ export const useGameState = () => {
         toast({ title: 'Finals Set!', description: 'The finalists are locked in.'});
         return;
     }
+
 
      const nextRoundIndex = currentRoundIndex + 1;
      if(nextRoundIndex < ROUND_NAMES.length) {
@@ -229,7 +224,7 @@ export const useGameState = () => {
               [nextRoundName]: { ...prev.rounds[nextRoundName], phase: 'setup' }
             }
           }));
-        } else { // This would be the final
+        } else { 
            setGameState(prev => ({
             ...prev,
             rounds: {

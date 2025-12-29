@@ -37,7 +37,7 @@ const timerSchema = z.object({
 
 const voteSchema = z.object({
     outcome: z.enum(['caught', 'not-caught']),
-    votedOut: z.enum(HOUSES as [string, ...string[]]).nullable(),
+    votedOut: z.string().nullable(),
 });
 
 const housesSchema = z.object({
@@ -168,14 +168,14 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     </Form>
                     {/* Voting */}
                     <Form {...voteForm}>
-                        <form onSubmit={voteForm.handleSubmit(data => submitVote(data.outcome, data.votedOut))} className="space-y-4">
+                        <form onSubmit={voteForm.handleSubmit(data => submitVote(data.outcome, data.votedOut as House | null))} className="space-y-4">
                             <FormField control={voteForm.control} name="outcome" render={({field}) => (
                                 <FormItem><FormLabel>Vote Outcome</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || undefined} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger></FormControl>
                                 <SelectContent><SelectItem value="caught">Traitor Caught</SelectItem><SelectItem value="not-caught">Traitor Not Caught</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                              <FormField control={voteForm.control} name="votedOut" render={({field}) => (
-                                <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || ""} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
-                                <SelectContent><SelectItem value="">None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || "none"} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
+                                <SelectContent><SelectItem value="none">None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'vote'}><Vote/>Submit Vote</Button>
                         </form>
