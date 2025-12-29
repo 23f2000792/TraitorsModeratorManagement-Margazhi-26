@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { GameState, RoundName, House, HOUSES, ROUND_NAMES, Phase, RoundState } from '@/lib/types';
+import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { generateRoundSummary } from '@/ai/flows/generate-round-summary';
 
 const initialGameState: GameState = {
-  eventName: 'THE TRAITORS 2026',
+  eventName: 'THE TRAITORS',
   currentRoundName: 'Qualifier',
   rounds: Object.fromEntries(
     ROUND_NAMES.map(name => [
@@ -22,6 +22,7 @@ const initialGameState: GameState = {
         points: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
         summary: '',
         locked: false,
+        name: name,
       },
     ])
   ) as Record<RoundName, RoundState>,

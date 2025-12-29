@@ -7,6 +7,7 @@ export const ROUND_NAMES: RoundName[] = ['Qualifier', 'Semi-Final 1', 'Semi-Fina
 export type Phase = 'idle' | 'words' | 'describe' | 'vote' | 'reveal' | 'summary';
 
 export interface RoundState {
+  name: RoundName;
   traitorHouse: House | null;
   commonWord: string;
   traitorWord: string;

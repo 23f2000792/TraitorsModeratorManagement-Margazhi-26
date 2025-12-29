@@ -30,7 +30,7 @@ export const CountdownTimer = ({ endTime }: CountdownTimerProps) => {
   }, [endTime]);
 
   return (
-    <div className="font-mono font-bold text-accent">
+    <div className="font-mono font-bold text-primary text-5xl">
       <span>{String(timeLeft.minutes).padStart(2, '0')}</span>
       <span className="animate-pulse">:</span>
       <span>{String(timeLeft.seconds).padStart(2, '0')}</span>

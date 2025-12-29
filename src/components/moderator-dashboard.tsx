@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, Play, Square, Timer, Vote, WandSparkles, Shuffle, MinusCircle, PlusCircle, Lock } from 'lucide-react';
+import { Eye, Play, Timer, Vote, WandSparkles, Shuffle, MinusCircle, PlusCircle, Lock } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
 
 type ModeratorDashboardProps = ReturnType<typeof useGameState>;
@@ -50,7 +50,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
   return (
     <div className="p-4 md:p-6">
       <header className="mb-6">
-        <h2 className="text-2xl font-headline">Moderator Dashboard</h2>
+        <h2 className="text-2xl font-headline text-primary">Moderator Dashboard</h2>
         <p className="text-muted-foreground">THE TRAITORS 2026</p>
       </header>
       <Tabs defaultValue="control">
@@ -139,7 +139,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                             {Object.entries(scoreboard).map(([house, score]) => (
                                 <TableRow key={house}>
                                     <TableCell className="font-medium flex items-center gap-2">
-                                      {round.traitorHouse === house && currentRoundName === round.name && <Eye className="w-4 h-4 text-primary" />}
+                                      {round.traitorHouse === house && currentRoundName === round.name && <Eye className="w-4 h-4 text-destructive" />}
                                       {house}
                                     </TableCell>
                                     <TableCell>{score}</TableCell>
