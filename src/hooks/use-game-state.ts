@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { produce } from 'immer';
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,14 @@ const shuffle = (array: any[]) => {
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const { toast } = useToast();
+  const [roundCompletedMessage, setRoundCompletedMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (roundCompletedMessage) {
+      toast({ title: 'All Semi-Finals Complete', description: roundCompletedMessage });
+      setRoundCompletedMessage(null);
+    }
+  }, [roundCompletedMessage, toast]);
 
   const currentRound = gameState.rounds[gameState.currentRoundName];
   const activeHouses = currentRound.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
@@ -163,7 +171,7 @@ export const useGameState = () => {
                 draft.rounds[nextRoundName].phase = 'setup';
             }));
         } else {
-            toast({title: "All Semi-Finals Complete", description: "The game has concluded."})
+            setRoundCompletedMessage("The game has concluded.");
         }
     }
   };
