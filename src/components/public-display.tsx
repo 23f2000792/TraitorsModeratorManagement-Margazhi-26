@@ -1,19 +1,21 @@
 'use client';
 
-import { GameState, House } from '@/lib/types';
+import { GameState, House, SemiFinalSubRound } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CountdownTimer } from './countdown-timer';
 import { Users, Shield, Skull } from 'lucide-react';
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
 
 type PublicDisplayProps = {
   gameState: GameState;
 };
 
 const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
-  const { currentRoundName, rounds, eliminatedHouses } = gameState;
+  const { currentRoundName, rounds } = gameState;
   const round = rounds[currentRoundName];
+  const isSemiFinal = currentRoundName.includes('Semi-Final');
+  const currentSubRound: SemiFinalSubRound | undefined = isSemiFinal ? round.subRounds?.[round.semiFinalRound] : undefined;
+  const roundData = isSemiFinal ? currentSubRound : round;
 
   switch (round.phase) {
     case 'idle':
@@ -53,7 +55,7 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
     case 'vote':
       return <div className="text-center"><p className="text-4xl font-headline text-destructive animate-pulse">VOTING IN PROGRESS</p></div>;
     case 'reveal':
-        const houseWasEliminated = round.voteOutcome === 'caught' || round.votedOutHouse;
+        if (!roundData) return null;
 
         return (
             <Card className="bg-transparent border-accent/20">
@@ -61,45 +63,37 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
                 <CardContent className="space-y-6 text-xl text-center">
                     <div className="animate-fade-in-up animation-delay-100">
                         <p className="text-muted-foreground">The Traitor was...</p>
-                        <p className="font-bold text-2xl text-destructive">{round.traitorHouse}</p>
+                        <p className="font-bold text-2xl text-destructive">{roundData.traitorHouse}</p>
                     </div>
                     
-                    {currentRoundName.includes('Semi-Final') ? (
-                         <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
-                            {round.voteOutcome === 'caught' ? (
-                                <>
-                                <Skull className="w-12 h-12 text-destructive" />
-                                <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
-                                </>
-                            ) : (
-                                <>
-                                <Shield className="w-12 h-12 text-green-500" />
-                                <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
-                                </>
-                            )}
-                         </div>
-                    ) : (
-                         <div className="animate-fade-in-up animation-delay-300">
-                            <p className="text-muted-foreground">Result</p>
-                            <p className="font-bold text-2xl text-primary">{round.voteOutcome === 'caught' ? 'TRAITOR CAUGHT' : 'TRAITOR ESCAPED'}</p>
-                        </div>
-                    )}
+                    <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
+                        {roundData.voteOutcome === 'caught' ? (
+                            <>
+                            <Skull className="w-12 h-12 text-destructive" />
+                            <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
+                            </>
+                        ) : (
+                            <>
+                            <Shield className="w-12 h-12 text-green-500" />
+                            <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
+                            </>
+                        )}
+                    </div>
                    
-
                      <div className="animate-fade-in-up animation-delay-500 grid grid-cols-2 gap-4 pt-4">
                         <div>
                             <p className="text-muted-foreground">Common Word</p>
-                            <p className="font-bold text-2xl">{round.commonWord}</p>
+                            <p className="font-bold text-2xl">{roundData.commonWord}</p>
                         </div>
                         <div>
                             <p className="text-muted-foreground">Traitor Word</p>
-                            <p className="font-bold text-2xl">{round.traitorWord}</p>
+                            <p className="font-bold text-2xl">{roundData.traitorWord}</p>
                         </div>
                     </div>
-                     {round.votedOutHouse && (
+                     {roundData.votedOutHouse && (
                         <div className="animate-fade-in-up animation-delay-700 text-center">
                              <p className="text-muted-foreground">Voted Out</p>
-                             <p className="font-bold text-2xl text-amber-500">{round.votedOutHouse}</p>
+                             <p className="font-bold text-2xl text-amber-500">{roundData.votedOutHouse}</p>
                         </div>
                     )}
                 </CardContent>
@@ -113,6 +107,9 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
 export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
   const { eventName, currentRoundName, rounds, eliminatedHouses } = gameState;
   const round = rounds[currentRoundName];
+  const isSemiFinal = currentRoundName.includes('Semi-Final');
+
+  const roundTitle = isSemiFinal ? `${currentRoundName} - Round ${round.semiFinalRound + 1}` : currentRoundName;
 
   return (
     <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
@@ -120,7 +117,7 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
         <div className="flex items-center justify-center gap-4">
             <h1 className="text-4xl font-headline tracking-widest uppercase text-primary">{eventName}</h1>
         </div>
-        <p className="text-2xl text-accent font-medium mt-2">{currentRoundName}</p>
+        <p className="text-2xl text-accent font-medium mt-2">{roundTitle}</p>
       </header>
 
       <main className="flex-grow flex items-center justify-center text-6xl font-bold">
