@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { generateRoundSummary } from '@/ai/flows/generate-round-summary';
 
 const initialGameState: GameState = {
   eventName: 'THE TRAITORS',
@@ -22,7 +21,6 @@ const initialGameState: GameState = {
         voteOutcome: null,
         votedOutHouse: null,
         points: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
-        summary: '',
         locked: false,
       },
     ])
@@ -143,27 +141,6 @@ export const useGameState = () => {
     toast({ title: 'Score Adjusted', description: `${house} score changed by ${adjustment}.`});
   };
 
-  const generateSummary = async () => {
-    if (currentRound.phase !== 'reveal') {
-      toast({ title: 'Error', description: 'Can only generate summary after reveal.', variant: 'destructive' });
-      return;
-    }
-
-    try {
-      const result = await generateRoundSummary({
-        traitorHouse: currentRound.traitorHouse!,
-        outcome: currentRound.voteOutcome === 'caught' ? 'Traitor Caught' : 'Traitor Not Caught',
-        pointsAwarded: currentRound.points,
-        timestamp: new Date().toISOString(),
-      });
-      updateCurrentRound({ summary: result.summary, phase: 'summary' });
-      toast({ title: 'Summary Generated', description: 'AI round summary is ready.' });
-    } catch (error) {
-      console.error('AI summary generation failed:', error);
-      toast({ title: 'AI Error', description: 'Failed to generate round summary.', variant: 'destructive' });
-    }
-  };
-
   const endRound = () => {
     updateCurrentRound({ locked: true, phase: 'idle' });
      const nextRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName) + 1;
@@ -188,7 +165,6 @@ export const useGameState = () => {
     startPhaseTimer,
     submitVote,
     applyScoreAdjustment,
-    generateSummary,
     endRound,
     setParticipatingHouses,
     activeHouses,

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, Play, Timer, Vote, WandSparkles, Shuffle, MinusCircle, PlusCircle, Lock, Users } from 'lucide-react';
+import { Eye, Play, Timer, Vote, Shuffle, MinusCircle, PlusCircle, Lock, Users } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
 
 type ModeratorDashboardProps = ReturnType<typeof useGameState>;
@@ -45,14 +45,14 @@ const housesSchema = z.object({
 
 
 export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
-    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, applyScoreAdjustment, generateSummary, endRound, setParticipatingHouses, activeHouses } = props;
+    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, applyScoreAdjustment, endRound, setParticipatingHouses, activeHouses } = props;
     const { currentRoundName, rounds, scoreboard } = gameState;
     const round = rounds[currentRoundName];
 
-    const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: '', traitorWord: '' } });
+    const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: round.commonWord || '', traitorWord: round.traitorWord || '' } });
     const timerForm = useForm<z.infer<typeof timerSchema>>({ resolver: zodResolver(timerSchema), defaultValues: { duration: 300 } });
-    const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema), defaultValues: { outcome: 'caught', votedOut: null } });
-    const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: [] } });
+    const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema), defaultValues: { outcome: round.voteOutcome || 'caught', votedOut: round.votedOutHouse || null } });
+    const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: round.participatingHouses || [] } });
 
   return (
     <div className="p-4 md:p-6">
@@ -116,7 +116,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                                                 checked={field.value?.includes(house)}
                                                 onCheckedChange={(checked) => {
                                                 return checked
-                                                    ? field.onChange([...field.value, house])
+                                                    ? field.onChange([...(field.value || []), house])
                                                     : field.onChange(
                                                         field.value?.filter(
                                                         (value) => value !== house
@@ -178,10 +178,9 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                         </form>
                     </Form>
 
-                    {/* Reveal & Summary */}
+                    {/* Reveal & End */}
                     <div className="flex gap-4">
-                         <Button onClick={generateSummary} disabled={round.phase !== 'reveal'}><WandSparkles/>Generate Summary</Button>
-                         <Button onClick={endRound} disabled={round.phase !== 'summary'} variant="destructive"><Lock/>Lock Round</Button>
+                         <Button onClick={endRound} disabled={round.phase !== 'reveal'} variant="destructive"><Lock/>Lock Round</Button>
                     </div>
 
                 </CardContent>

@@ -2,11 +2,8 @@
 
 import { GameState, House } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CountdownTimer } from './countdown-timer';
-import { Eye, Users } from 'lucide-react';
-import { TraitorLogo } from './icons';
-import { cn } from '@/lib/utils';
+import { Users } from 'lucide-react';
 import Image from 'next/image';
 
 type PublicDisplayProps = {
@@ -70,29 +67,16 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
                 </CardContent>
             </Card>
         );
-    case 'summary':
-        return (
-            <Card className="bg-card/50">
-                <CardHeader><CardTitle className="text-primary text-center font-headline text-3xl">Round Summary</CardTitle></CardHeader>
-                <CardContent>
-                    <p className="text-lg whitespace-pre-wrap text-center italic">"{round.summary}"</p>
-                </CardContent>
-            </Card>
-        );
     default:
       return null;
   }
 };
 
 export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
-  const { eventName, currentRoundName, rounds, scoreboard } = gameState;
-  const round = rounds[currentRoundName];
-  const activeHouses = round.participatingHouses;
-  
-  const relevantScores = Object.entries(scoreboard).filter(([house]) => activeHouses.includes(house as House)).sort(([, a], [, b]) => b - a);
+  const { eventName, currentRoundName } = gameState;
 
   return (
-    <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-blue-900 via-blue-900 to-black">
+    <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
       <header className="text-center mb-8">
         <div className="flex items-center justify-center gap-4">
             <h1 className="text-4xl font-headline tracking-widest uppercase text-primary">{eventName}</h1>
@@ -103,41 +87,6 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
       <main className="flex-grow flex items-center justify-center text-6xl font-bold">
         <PhaseDisplay gameState={gameState} />
       </main>
-
-      {(round.phase === 'reveal' || round.phase === 'summary' || round.phase === 'describe' || round.phase === 'vote') && (
-         <footer className="mt-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl font-headline text-center text-primary">Scoreboard</CardTitle>
-                </CardHeader>
-                <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>House</TableHead>
-                            <TableHead className="text-right">Round Points</TableHead>
-                            <TableHead className="text-right">Total Score</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {relevantScores.map(([house, score]) => (
-                        <TableRow key={house} className={cn(round.traitorHouse === house && 'bg-destructive/20')}>
-                            <TableCell className="font-medium flex items-center gap-2">
-                                {round.traitorHouse === house && <Eye className="w-4 h-4 text-destructive" />}
-                                {house}
-                            </TableCell>
-                            <TableCell className={cn("text-right font-mono", round.points[house as House] > 0 ? 'text-green-400' : 'text-red-500')}>
-                                {round.points[house as House] > 0 ? '+' : ''}{round.points[house as House] || 0}
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-bold">{score}</TableCell>
-                        </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-                </CardContent>
-            </Card>
-        </footer>
-      )}
     </div>
   );
 };

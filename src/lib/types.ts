@@ -4,7 +4,7 @@ export const HOUSES: House[] = ['Sundarbans', 'Kanha', 'Wayanad', 'Kaziranga', '
 export type RoundName = 'Semi-Final 1' | 'Semi-Final 2' | 'Final';
 export const ROUND_NAMES: RoundName[] = ['Semi-Final 1', 'Semi-Final 2', 'Final'];
 
-export type Phase = 'idle' | 'setup'| 'words' | 'describe' | 'vote' | 'reveal' | 'summary';
+export type Phase = 'idle' | 'setup'| 'words' | 'describe' | 'vote' | 'reveal';
 
 export interface RoundState {
   name: RoundName;
@@ -17,7 +17,6 @@ export interface RoundState {
   voteOutcome: 'caught' | 'not-caught' | null;
   votedOutHouse: House | null;
   points: Record<House, number>;
-  summary: string;
   locked: boolean;
 }
 
