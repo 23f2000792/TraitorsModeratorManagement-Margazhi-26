@@ -52,7 +52,7 @@ export const useGameState = () => {
   const { firestore } = useFirebase();
 
   const updateFirestoreState = useCallback(async (newState: GameState) => {
-    if (firestore) {
+    if (firestore && isInitialized) {
       try {
         await setDoc(doc(firestore, 'gameState', GAME_STATE_DOC_ID), newState, { merge: true });
       } catch (error) {
@@ -60,7 +60,7 @@ export const useGameState = () => {
         toast({ title: 'Connection Error', description: 'Failed to save game state. Check your connection.', variant: 'destructive'});
       }
     }
-  }, [firestore, toast]);
+  }, [firestore, toast, isInitialized]);
 
 
   useEffect(() => {
@@ -77,7 +77,9 @@ export const useGameState = () => {
             setGameState(initialGameState);
           });
         }
-        setIsInitialized(true);
+        if (!isInitialized) {
+          setIsInitialized(true);
+        }
       }, (error) => {
         console.error("Failed to subscribe to game state", error);
         toast({ title: 'Connection Error', description: 'Could not connect to the game state. Please refresh.', variant: 'destructive'});
@@ -86,7 +88,7 @@ export const useGameState = () => {
 
       return () => unsubscribe();
     }
-  }, [firestore, toast]);
+  }, [firestore, toast, isInitialized]);
   
 
   useEffect(() => {
@@ -100,18 +102,20 @@ export const useGameState = () => {
   const activeHouses = currentRound?.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h)) || [];
   const currentSubRound = currentRound?.subRounds?.[currentRound.currentSubRoundIndex];
 
-  const updateCurrentRound = (updater: (draft: RoundState) => void) => {
-    const newState = produce(gameState, draft => {
-      updater(draft.rounds[draft.currentRoundName]);
-    });
+  const updateState = (updater: (draft: GameState) => void) => {
+    const newState = produce(gameState, updater);
     setGameState(newState);
     updateFirestoreState(newState);
   };
+  
+  const updateCurrentRound = (updater: (draft: RoundState) => void) => {
+    updateState(draft => {
+      updater(draft.rounds[draft.currentRoundName]);
+    });
+  };
 
   const selectRound = (roundName: RoundName) => {
-    const newState = produce(gameState, draft => { draft.currentRoundName = roundName; });
-    setGameState(newState);
-    updateFirestoreState(newState);
+    updateState(draft => { draft.currentRoundName = roundName; });
   };
 
   const setParticipatingHouses = (houses: House[]) => {
@@ -122,7 +126,7 @@ export const useGameState = () => {
     
     const shuffledTraitors = shuffle([...houses]);
 
-    const newState = produce(gameState, draft => {
+    updateState(draft => {
       const round = draft.rounds[draft.currentRoundName];
       round.participatingHouses = houses;
       round.phase = 'idle';
@@ -138,8 +142,6 @@ export const useGameState = () => {
       }));
     });
 
-    setGameState(newState);
-    updateFirestoreState(newState);
     toast({ title: 'Houses Set', description: `Houses & Traitors for ${currentRound.name} are locked in.`});
   };
 
@@ -187,7 +189,7 @@ export const useGameState = () => {
   const submitVoteOutcome = (outcome: VoteOutcome) => {
     if (!currentRound || currentRound.phase !== 'vote' || !currentSubRound) return;
     
-    const newState = produce(gameState, draft => {
+    updateState(draft => {
         const subRound = draft.rounds[draft.currentRoundName].subRounds![draft.currentRound.currentSubRoundIndex];
         subRound.voteOutcome = outcome;
         draft.rounds[draft.currentRoundName].phase = 'reveal';
@@ -196,29 +198,28 @@ export const useGameState = () => {
             const traitor = currentSubRound.traitorHouse;
             if (!draft.eliminatedHouses.includes(traitor)) {
                 draft.eliminatedHouses.push(traitor);
-                toast({ title: 'Traitor Eliminated!', description: `${traitor} is out of the game.` });
             }
+             toast({ title: 'Traitor Eliminated!', description: `${traitor} is out of the game.` });
         } else {
             toast({ title: 'Traitor Survived!', description: `The Traitor was not identified.` });
         }
     });
-    setGameState(newState);
-    updateFirestoreState(newState);
   };
 
   const endRound = () => {
     if (!currentRound) return;
     const nextSubRoundIndex = currentRound.currentSubRoundIndex + 1;
 
-    const newState = produce(gameState, draft => {
+    updateState(draft => {
       if (nextSubRoundIndex < currentRound.subRounds.length) {
           const round = draft.rounds[draft.currentRoundName];
           round.currentSubRoundIndex = nextSubRoundIndex;
           round.phase = 'words';
           toast({ title: `Next Round`, description: `Moving to Round ${nextSubRoundIndex + 1}` });
       } else { 
-          draft.rounds[draft.currentRoundName].locked = true; 
-          draft.rounds[draft.currentRoundName].phase = 'idle';
+          const round = draft.rounds[draft.currentRoundName];
+          round.locked = true; 
+          round.phase = 'idle';
           const currentRoundIndex = ROUND_NAMES.indexOf(draft.currentRoundName);
           if (currentRoundIndex < ROUND_NAMES.length - 1) {
               const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
@@ -231,9 +232,6 @@ export const useGameState = () => {
           }
       }
     });
-
-    setGameState(newState);
-    updateFirestoreState(newState);
   };
 
   return { 

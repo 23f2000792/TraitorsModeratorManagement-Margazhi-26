@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils';
 type CountdownTimerProps = {
   endTime: number;
   className?: string;
+  onTimerEnd?: () => void;
 };
 
-export const CountdownTimer = ({ endTime, className }: CountdownTimerProps) => {
+export const CountdownTimer = ({ endTime, className, onTimerEnd }: CountdownTimerProps) => {
   const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -22,19 +23,28 @@ export const CountdownTimer = ({ endTime, className }: CountdownTimerProps) => {
       return { minutes: 0, seconds: 0 };
     };
 
-    setTimeLeft(calculateTimeLeft());
+    let interval: NodeJS.Timeout;
 
-    const interval = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
+    const updateTimer = () => {
+      const newTimeLeft = calculateTimeLeft();
+      setTimeLeft(newTimeLeft);
+
+      if (newTimeLeft.minutes === 0 && newTimeLeft.seconds === 0) {
+        onTimerEnd?.();
+        clearInterval(interval);
+      }
+    };
+    
+    updateTimer();
+    interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [endTime]);
+  }, [endTime, onTimerEnd]);
 
   return (
     <div className={cn("font-mono font-bold text-primary text-8xl md:text-9xl tracking-widest", className)}>
       <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">{String(timeLeft.minutes).padStart(2, '0')}</span>
-      <span className="animate-pulse mx-2">:</span>
+      <span className={timeLeft.seconds > 0 || timeLeft.minutes > 0 ? "animate-pulse" : "" + " mx-2"}>:</span>
       <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">{String(timeLeft.seconds).padStart(2, '0')}</span>
     </div>
   );

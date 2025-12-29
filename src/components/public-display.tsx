@@ -56,7 +56,14 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
       return (
         <div className="text-center space-y-8 animate-fade-in-up">
           <PhaseTitle icon={<Hourglass className="w-12 h-12 text-primary" />} text="Describe Phase" />
-          {round.timerEndsAt ? <CountdownTimer endTime={round.timerEndsAt} /> : <p className="text-4xl text-muted-foreground animate-pulse">Waiting to start timer...</p>}
+          {round.timerEndsAt && round.timerEndsAt > Date.now() ? <CountdownTimer endTime={round.timerEndsAt} /> : <p className="text-4xl text-muted-foreground animate-pulse">Waiting to start timer...</p>}
+          {round.timerEndsAt && round.timerEndsAt <= Date.now() && (
+             <div className="font-mono font-bold text-primary text-8xl md:text-9xl tracking-widest">
+                <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">00</span>
+                <span className="mx-2">:</span>
+                <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">00</span>
+            </div>
+          )}
         </div>
       );
     case 'vote':
