@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 type CountdownTimerProps = {
   endTime: number;
+  className?: string;
 };
 
-export const CountdownTimer = ({ endTime }: CountdownTimerProps) => {
+export const CountdownTimer = ({ endTime, className }: CountdownTimerProps) => {
   const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
 
   useEffect(() => {
@@ -30,10 +32,10 @@ export const CountdownTimer = ({ endTime }: CountdownTimerProps) => {
   }, [endTime]);
 
   return (
-    <div className="font-mono font-bold text-primary text-5xl">
-      <span>{String(timeLeft.minutes).padStart(2, '0')}</span>
-      <span className="animate-pulse">:</span>
-      <span>{String(timeLeft.seconds).padStart(2, '0')}</span>
+    <div className={cn("font-mono font-bold text-primary text-8xl md:text-9xl tracking-widest", className)}>
+      <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">{String(timeLeft.minutes).padStart(2, '0')}</span>
+      <span className="animate-pulse mx-2">:</span>
+      <span className="bg-black/50 px-4 py-2 rounded-lg tabular-nums">{String(timeLeft.seconds).padStart(2, '0')}</span>
     </div>
   );
 };

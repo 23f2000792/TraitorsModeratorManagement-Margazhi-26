@@ -3,12 +3,20 @@
 import { GameState, SubRound } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CountdownTimer } from './countdown-timer';
-import { Users, Shield, Skull } from 'lucide-react';
+import { Users, Shield, Skull, Hourglass, Vote, Eye } from 'lucide-react';
 import Image from 'next/image';
 
 type PublicDisplayProps = {
   gameState: GameState;
 };
+
+const PhaseTitle = ({ icon, text }: { icon: React.ReactNode, text: string }) => (
+    <div className="flex items-center justify-center gap-4 mb-8">
+        {icon}
+        <p className="text-3xl font-headline text-accent uppercase tracking-wider">{text}</p>
+    </div>
+);
+
 
 const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
   const { currentRoundName, rounds } = gameState;
@@ -19,58 +27,67 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
     case 'idle':
         if (round.locked) {
              return (
-                <div className="text-center flex flex-col items-center gap-8">
-                    <p className="text-2xl text-accent animate-pulse">Waiting for next round...</p>
+                <div className="text-center flex flex-col items-center gap-8 animate-fade-in-up">
+                    <PhaseTitle icon={<Hourglass className="w-12 h-12 text-primary animate-pulse" />} text="Waiting for next round..." />
                 </div>
             );
         }
         return (
-            <div className="text-center flex flex-col items-center gap-8">
-                <Image src="/poster.jpg" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-lg border-4 border-primary" data-ai-hint="game poster" />
-                <p className="text-2xl text-accent animate-pulse">Waiting for the round to begin...</p>
+            <div className="text-center flex flex-col items-center gap-8 animate-fade-in-up">
+                <Image src="/poster.jpg" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-2xl shadow-primary/20 border-4 border-primary" data-ai-hint="game poster" />
+                <p className="text-2xl text-accent animate-pulse mt-4">The game is about to begin...</p>
             </div>
         );
     case 'setup':
         return (
-            <div className="text-center flex flex-col items-center gap-8">
-                <Users className="w-24 h-24 text-primary animate-pulse" />
-                <p className="text-3xl font-headline text-accent">House Selection for {currentRoundName}</p>
-                <p className="text-xl text-muted-foreground">The moderator is choosing which houses will compete.</p>
+            <div className="text-center flex flex-col items-center gap-8 animate-fade-in-up">
+                <PhaseTitle icon={<Users className="w-12 h-12 text-primary animate-pulse" />} text="House Selection" />
+                <p className="text-2xl text-muted-foreground">The moderator is choosing which houses will compete.</p>
             </div>
         );
     case 'words':
-        return <div className="text-center"><p className="text-2xl text-accent animate-pulse">The stage is being set...</p></div>;
+        return (
+             <div className="text-center flex flex-col items-center gap-8 animate-fade-in-up">
+                <PhaseTitle icon={<Eye className="w-12 h-12 text-primary animate-pulse" />} text="The Stage is Being Set" />
+                <p className="text-2xl text-accent animate-pulse">A traitor has been chosen. Words are being assigned.</p>
+            </div>
+        );
     case 'describe':
       return (
-        <div className="text-center space-y-4">
-          <p className="text-3xl font-headline">Describe Phase</p>
-          {round.timerEndsAt && <CountdownTimer endTime={round.timerEndsAt} />}
+        <div className="text-center space-y-8 animate-fade-in-up">
+          <PhaseTitle icon={<Hourglass className="w-12 h-12 text-primary" />} text="Describe Phase" />
+          {round.timerEndsAt ? <CountdownTimer endTime={round.timerEndsAt} /> : <p className="text-4xl text-muted-foreground animate-pulse">Waiting to start timer...</p>}
         </div>
       );
     case 'vote':
-      return <div className="text-center"><p className="text-4xl font-headline text-destructive animate-pulse">VOTING IN PROGRESS</p></div>;
+      return (
+        <div className="text-center animate-fade-in-up">
+            <PhaseTitle icon={<Vote className="w-12 h-12 text-destructive" />} text="Voting in Progress" />
+            <p className="text-3xl text-primary animate-pulse">The houses are casting their votes...</p>
+        </div>
+      );
     case 'reveal':
         if (!currentSubRound) return null;
 
         return (
-            <Card className="bg-transparent border-accent/20">
-                <CardHeader><CardTitle className="text-primary text-center font-headline text-3xl">THE REVEAL</CardTitle></CardHeader>
-                <CardContent className="space-y-6 text-xl text-center">
-                    <div className="animate-fade-in-up animation-delay-100">
+            <Card className="bg-transparent border-accent/20 w-full max-w-2xl">
+                <CardHeader><CardTitle className="text-primary text-center font-headline text-4xl">The Reveal</CardTitle></CardHeader>
+                <CardContent className="space-y-8 text-2xl text-center">
+                    <div className="animate-fade-in-up" style={{animationDelay: '100ms'}}>
                         <p className="text-muted-foreground">The Traitor was...</p>
-                        <p className="font-bold text-2xl text-destructive">{currentSubRound.traitorHouse}</p>
+                        <p className="font-bold text-4xl text-destructive mt-2">{currentSubRound.traitorHouse}</p>
                     </div>
                     
-                    <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
+                    <div className="animate-fade-in-up flex items-center justify-center gap-4" style={{animationDelay: '500ms'}}>
                         {currentSubRound.voteOutcome === 'caught' ? (
                             <>
-                            <Skull className="w-12 h-12 text-destructive" />
-                            <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
+                            <Skull className="w-16 h-16 text-destructive" />
+                            <p className="font-bold text-4xl text-primary">TRAITOR ELIMINATED</p>
                             </>
                         ) : (
                             <>
-                            <Shield className="w-12 h-12 text-green-500" />
-                            <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
+                            <Shield className="w-16 h-16 text-green-500" />
+                            <p className="font-bold text-4xl text-green-500">TRAITOR SURVIVED</p>
                             </>
                         )}
                     </div>
@@ -89,12 +106,10 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
   const roundTitle = currentSubRound ? `${currentRoundName} - Round ${round.currentSubRoundIndex + 1}` : currentRoundName;
 
   return (
-    <div className="flex flex-col h-full w-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
-      <header className="text-center mb-8">
-        <div className="flex items-center justify-center gap-4">
-            <h1 className="text-4xl font-headline tracking-widest uppercase text-primary">{eventName}</h1>
-        </div>
-        <p className="text-2xl text-accent font-medium mt-2">{roundTitle}</p>
+    <div className="flex flex-col h-full w-full p-6 md:p-10 bg-gradient-to-b from-background via-black to-background">
+      <header className="text-center mb-8 animate-fade-in-up">
+        <h1 className="text-5xl md:text-6xl font-headline tracking-widest uppercase text-primary" style={{ textShadow: '0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary))' }}>{eventName}</h1>
+        <p className="text-2xl md:text-3xl text-accent font-medium mt-4 font-headline tracking-wide">{roundTitle}</p>
       </header>
 
       <main className="flex-grow flex items-center justify-center text-6xl font-bold">
@@ -102,15 +117,15 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
       </main>
 
       {eliminatedHouses.length > 0 && (
-          <footer className="mt-8">
-            <Card className="bg-background/50">
+          <footer className="mt-8 animate-fade-in-up" style={{animationDelay: '800ms'}}>
+            <Card className="bg-black/50 border-destructive/30 max-w-3xl mx-auto">
                 <CardHeader>
-                    <CardTitle className="text-xl text-center text-destructive font-headline">Eliminated Houses</CardTitle>
+                    <CardTitle className="text-xl text-center text-destructive font-headline tracking-wider">Eliminated Houses</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                    <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
                         {eliminatedHouses.map(house => (
-                            <p key={house} className="text-lg text-muted-foreground line-through">{house}</p>
+                            <p key={house} className="text-lg text-muted-foreground line-through decoration-destructive decoration-2">{house}</p>
                         ))}
                     </div>
                 </CardContent>
