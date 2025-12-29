@@ -7,13 +7,13 @@ import { generateRoundSummary } from '@/ai/flows/generate-round-summary';
 
 const initialGameState: GameState = {
   eventName: 'THE TRAITORS',
-  currentRoundName: 'Qualifier',
+  currentRoundName: 'Semi-Final 1',
   rounds: Object.fromEntries(
     ROUND_NAMES.map(name => [
       name,
       {
         name: name,
-        participatingHouses: name === 'Qualifier' || name === 'Final' ? [...HOUSES] : [],
+        participatingHouses: name.includes('Final') ? [...HOUSES] : [],
         traitorHouse: null,
         commonWord: '',
         traitorWord: '',
@@ -69,6 +69,11 @@ export const useGameState = () => {
       toast({ title: 'Error', description: 'Round is already in progress.', variant: 'destructive' });
       return;
     }
+    if (currentRound.name.includes('Semi-Final') && activeHouses.length !== 6) {
+      toast({ title: 'Error', description: 'Please select 6 houses for the semi-final first.', variant: 'destructive' });
+      return;
+    }
+
     const traitorHouse = activeHouses[Math.floor(Math.random() * activeHouses.length)];
     updateCurrentRound({ traitorHouse, phase: 'words' });
     toast({ title: 'Round Started', description: `${traitorHouse} is the Traitor!` });

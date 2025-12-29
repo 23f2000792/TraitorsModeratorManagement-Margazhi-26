@@ -1,8 +1,8 @@
 export type House = 'Sundarbans' | 'Kanha' | 'Wayanad' | 'Kaziranga' | 'Corbett' | 'Bandipur' | 'Nilgiri' | 'Gir' | 'Nallamala' | 'Saranda' | 'Pichavaram' | 'Namdapha';
 export const HOUSES: House[] = ['Sundarbans', 'Kanha', 'Wayanad', 'Kaziranga', 'Corbett', 'Bandipur', 'Nilgiri', 'Gir', 'Nallamala', 'Saranda', 'Pichavaram', 'Namdapha'];
 
-export type RoundName = 'Qualifier' | 'Semi-Final 1' | 'Semi-Final 2' | 'Final';
-export const ROUND_NAMES: RoundName[] = ['Qualifier', 'Semi-Final 1', 'Semi-Final 2', 'Final'];
+export type RoundName = 'Semi-Final 1' | 'Semi-Final 2' | 'Final';
+export const ROUND_NAMES: RoundName[] = ['Semi-Final 1', 'Semi-Final 2', 'Final'];
 
 export type Phase = 'idle' | 'setup'| 'words' | 'describe' | 'vote' | 'reveal' | 'summary';
 
