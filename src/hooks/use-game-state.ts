@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { produce } from 'immer';
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +20,7 @@ const initialGameState: GameState = {
         currentSubRoundIndex: 0,
         subRounds: [],
         locked: false,
+        scores: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
       },
     ])
   ) as Record<RoundName, RoundState>,
@@ -38,10 +39,46 @@ const shuffle = (array: any[]) => {
   return array;
 };
 
+const getInitialState = (): GameState => {
+    if (typeof window === 'undefined') {
+      return initialGameState;
+    }
+    try {
+      const storedState = window.localStorage.getItem('gameState');
+      return storedState ? JSON.parse(storedState) : initialGameState;
+    } catch (error) {
+      console.error("Failed to parse game state from localStorage", error);
+      return initialGameState;
+    }
+}
+
+
 export const useGameState = () => {
-  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [gameState, setGameState] = useState<GameState>(getInitialState);
   const { toast } = useToast();
   const [roundCompletedMessage, setRoundCompletedMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+        window.localStorage.setItem('gameState', JSON.stringify(gameState));
+        window.dispatchEvent(new Event('storage')); // Notify other tabs
+    } catch (error) {
+        console.error("Failed to save game state to localStorage", error);
+    }
+  }, [gameState]);
+
+
+  useEffect(() => {
+    const syncState = () => {
+      setGameState(getInitialState());
+    };
+
+    window.addEventListener('storage', syncState);
+    return () => {
+      window.removeEventListener('storage', syncState);
+    };
+  }, []);
+
 
   useEffect(() => {
     if (roundCompletedMessage) {
@@ -166,8 +203,8 @@ export const useGameState = () => {
         const currentRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName);
         const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
         if(nextRoundName) {
-            selectRound(nextRoundName);
             setGameState(prev => produce(prev, draft => {
+                draft.currentRoundName = nextRoundName;
                 draft.rounds[nextRoundName].phase = 'setup';
             }));
         } else {
