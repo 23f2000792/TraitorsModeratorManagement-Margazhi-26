@@ -20,10 +20,12 @@ const initialGameState: GameState = {
         currentSubRoundIndex: 0,
         subRounds: [],
         locked: false,
+        timerEndsAt: null,
       },
     ])
   ) as Record<RoundName, RoundState>,
   eliminatedHouses: initialEliminatedHouses,
+  scores: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
 };
 
 // Fisher-Yates shuffle
@@ -38,7 +40,7 @@ const shuffle = (array: any[]) => {
   return array;
 };
 
-const getInitialState = (): GameState => {
+const getInitialStateFromStorage = (): GameState => {
     if (typeof window === 'undefined') {
       return initialGameState;
     }
@@ -53,27 +55,35 @@ const getInitialState = (): GameState => {
 
 
 export const useGameState = () => {
-  const [gameState, setGameState] = useState<GameState>(getInitialState);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
+  const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
   const [roundCompletedMessage, setRoundCompletedMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-        const currentState = JSON.stringify(gameState);
-        if (window.localStorage.getItem('gameState') !== currentState) {
-            window.localStorage.setItem('gameState', currentState);
-            window.dispatchEvent(new StorageEvent('storage', { key: 'gameState' })); // Notify other tabs
+    setGameState(getInitialStateFromStorage());
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialized) {
+        try {
+            const currentState = JSON.stringify(gameState);
+            if (window.localStorage.getItem('gameState') !== currentState) {
+                window.localStorage.setItem('gameState', currentState);
+                window.dispatchEvent(new StorageEvent('storage', { key: 'gameState' }));
+            }
+        } catch (error) {
+            console.error("Failed to save game state to localStorage", error);
         }
-    } catch (error) {
-        console.error("Failed to save game state to localStorage", error);
     }
-  }, [gameState]);
+  }, [gameState, isInitialized]);
 
 
   useEffect(() => {
     const syncState = (event: StorageEvent) => {
-        if (event.key === 'gameState') {
-            const newState = getInitialState();
+        if (event.key === 'gameState' && isInitialized) {
+            const newState = getInitialStateFromStorage();
             if (JSON.stringify(newState) !== JSON.stringify(gameState)) {
                 setGameState(newState);
             }
@@ -84,7 +94,7 @@ export const useGameState = () => {
     return () => {
       window.removeEventListener('storage', syncState);
     };
-  }, [gameState]);
+  }, [gameState, isInitialized]);
 
 
   useEffect(() => {
@@ -95,8 +105,8 @@ export const useGameState = () => {
   }, [roundCompletedMessage, toast]);
 
   const currentRound = gameState.rounds[gameState.currentRoundName];
-  const activeHouses = currentRound.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
-  const currentSubRound = currentRound.subRounds?.[currentRound.currentSubRoundIndex];
+  const activeHouses = currentRound?.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h)) || [];
+  const currentSubRound = currentRound?.subRounds?.[currentRound.currentSubRoundIndex];
 
   const updateCurrentRound = (updater: (draft: RoundState) => void) => {
     setGameState(prev => produce(prev, draft => {
@@ -110,7 +120,7 @@ export const useGameState = () => {
 
   const setParticipatingHouses = (houses: House[]) => {
     if (houses.length !== 6) {
-      toast({ title: 'Error', description: 'Must select exactly 6 houses for a semi-final.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Must select exactly 6 houses.', variant: 'destructive' });
       return;
     }
     
@@ -135,7 +145,7 @@ export const useGameState = () => {
   };
 
   const startRound = () => {
-    if (currentRound.phase !== 'idle' || currentRound.locked) {
+    if (!currentRound || currentRound.phase !== 'idle' || currentRound.locked) {
         toast({ title: 'Error', description: 'Round is already in progress or locked.', variant: 'destructive' });
         return;
     }
@@ -149,7 +159,7 @@ export const useGameState = () => {
   };
   
   const setWords = (commonWord: string, traitorWord: string) => {
-    if (currentRound.phase !== 'words') return;
+    if (!currentRound || currentRound.phase !== 'words') return;
 
     if (currentSubRound) {
         updateCurrentRound(draft => {
@@ -164,19 +174,19 @@ export const useGameState = () => {
   };
   
   const startPhaseTimer = (durationSeconds: number, forHouse?: House) => {
-    if (currentRound.phase !== 'describe') return;
+    if (!currentRound || currentRound.phase !== 'describe') return;
     const endTime = Date.now() + durationSeconds * 1000;
     updateCurrentRound(draft => { draft.timerEndsAt = endTime; });
   };
 
   const endDescribePhase = () => {
-    if (currentRound.phase !== 'describe') return;
+    if (!currentRound || currentRound.phase !== 'describe') return;
     updateCurrentRound(draft => { draft.phase = 'vote'; draft.timerEndsAt = null; });
     toast({ title: 'Describe Phase Over', description: 'Voting is now open.' });
   };
 
   const submitVoteOutcome = (outcome: VoteOutcome) => {
-    if (currentRound.phase !== 'vote' || !currentSubRound) return;
+    if (!currentRound || currentRound.phase !== 'vote' || !currentSubRound) return;
     
     if (outcome === 'caught') {
         setGameState(prev => produce(prev, draft => {
@@ -198,6 +208,7 @@ export const useGameState = () => {
   };
 
   const endRound = () => {
+    if (!currentRound) return;
     const nextSubRoundIndex = currentRound.currentSubRoundIndex + 1;
     if (nextSubRoundIndex < currentRound.subRounds.length) {
         updateCurrentRound(draft => {
@@ -208,8 +219,8 @@ export const useGameState = () => {
     } else { 
         updateCurrentRound(draft => { draft.locked = true; draft.phase = 'idle'; });
         const currentRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName);
-        const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
-        if(nextRoundName) {
+        if (currentRoundIndex < ROUND_NAMES.length - 1) {
+            const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
             setGameState(prev => produce(prev, draft => {
                 draft.currentRoundName = nextRoundName;
                 draft.rounds[nextRoundName].phase = 'setup';
@@ -222,6 +233,7 @@ export const useGameState = () => {
 
   return { 
     gameState, 
+    isInitialized,
     selectRound,
     startRound,
     setWords,
