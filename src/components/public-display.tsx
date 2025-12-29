@@ -112,7 +112,7 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
   const roundTitle = isSemiFinal ? `${currentRoundName} - Round ${round.semiFinalRound + 1}` : currentRoundName;
 
   return (
-    <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
+    <div className="flex flex-col h-full w-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
       <header className="text-center mb-8">
         <div className="flex items-center justify-center gap-4">
             <h1 className="text-4xl font-headline tracking-widest uppercase text-primary">{eventName}</h1>
@@ -124,7 +124,7 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
         <PhaseDisplay gameState={gameState} />
       </main>
 
-      {eliminatedHouses.length > 0 && (
+      {eliminatedHouses.length > 0 && !currentRoundName.includes('Final') && (
           <footer className="mt-8">
             <Card className="bg-background/50">
                 <CardHeader>

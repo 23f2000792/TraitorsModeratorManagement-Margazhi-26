@@ -223,12 +223,12 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                 <CardHeader>
                     <CardTitle>Scoreboard</CardTitle>
                     <CardDescription>
-                        {currentRoundName.includes('Final') ? 'Live scores for all houses.' : 'Scoreboard is only active during the Final round.'}
+                        Live scores for all houses.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead>{!isSemiFinal && <TableHead>Actions</TableHead>}</TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead>{currentRoundName === 'Final' && <TableHead>Actions</TableHead>}</TableRow></TableHeader>
                         <TableBody>
                             {Object.entries(scoreboard).sort(([, a], [, b]) => b - a).map(([house, score]) => (
                                 <TableRow key={house}>
@@ -237,7 +237,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                                       <span className={cn(gameState.eliminatedHouses.includes(house as House) && "line-through text-muted-foreground")}>{house}</span>
                                     </TableCell>
                                     <TableCell>{score}</TableCell>
-                                    {!isSemiFinal && <TableCell className="flex gap-2">
+                                    {currentRoundName === 'Final' && <TableCell className="flex gap-2">
                                         <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, 10)}><PlusCircle size={16}/></Button>
                                         <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, -10)}><MinusCircle size={16}/></Button>
                                     </TableCell>}

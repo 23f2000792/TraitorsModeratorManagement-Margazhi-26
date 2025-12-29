@@ -149,19 +149,8 @@ export const useGameState = () => {
 
     const endTime = Date.now() + durationSeconds * 1000;
     
-    if (isSemiFinal) {
-        // In semi-finals, timer is per-house, not a phase transition trigger
-        updateCurrentRound(draft => { draft.timerEndsAt = endTime; });
-    } else { // Final
-        updateCurrentRound(draft => { draft.timerEndsAt = endTime; });
-        setTimeout(() => {
-            setGameState(prev => produce(prev, draft => {
-                draft.rounds[draft.currentRoundName].phase = 'vote';
-                draft.rounds[draft.currentRoundName].timerEndsAt = null;
-            }));
-            toast({ title: 'Time\'s Up!', description: 'Voting is now open.' });
-        }, durationSeconds * 1000);
-    }
+    // In semi-finals and final, timer is per-house and controlled by moderator
+    updateCurrentRound(draft => { draft.timerEndsAt = endTime; });
   };
 
   const endDescribePhase = () => {
@@ -183,6 +172,7 @@ export const useGameState = () => {
             draft.phase = 'reveal';
         });
 
+        // In Semi-finals, if traitor is caught, they are eliminated. No score.
         if (outcome === 'caught') {
             setGameState(prev => produce(prev, draft => {
                 const traitor = currentSubRound.traitorHouse;
@@ -262,10 +252,11 @@ export const useGameState = () => {
   };
   
   const endSemiFinals = () => {
-    const semi1Survivors = gameState.rounds['Semi-Final 1'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h)).slice(0, 3);
-    const semi2Survivors = gameState.rounds['Semi-Final 2'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h)).slice(0, 3);
+    const semi1Survivors = gameState.rounds['Semi-Final 1'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
+    const semi2Survivors = gameState.rounds['Semi-Final 2'].participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
     
-    const finalists = [...new Set([...semi1Survivors, ...semi2Survivors])];
+    // As per rules, top 3 from each advance
+    const finalists = [...new Set([...semi1Survivors.slice(0, 3), ...semi2Survivors.slice(0, 3)])];
     const eliminatedForAllTime = HOUSES.filter(h => !finalists.includes(h));
 
     setGameState(produce(draft => {
