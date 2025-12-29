@@ -149,10 +149,10 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     <Form {...wordsForm}>
                         <form onSubmit={wordsForm.handleSubmit((data) => setWords(data.commonWord, data.traitorWord))} className="space-y-4">
                             <FormField name="commonWord" control={wordsForm.control} render={({field}) => (
-                                <FormItem><FormLabel>Common Word</FormLabel><FormControl><Input {...field} disabled={round.phase !== 'words'}/></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Common Word</FormLabel><FormControl><Input {...field} disabled={round.phase !== 'words'} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField name="traitorWord" control={wordsForm.control} render={({field}) => (
-                                <FormItem><FormLabel>Traitor Word</FormLabel><FormControl><Input {...field} disabled={round.phase !== 'words'} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Traitor Word</FormLabel><FormControl><Input {...field} disabled={round.phase !== 'words'} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'words'}><Play/>Set Words & Start</Button>
                         </form>
@@ -170,12 +170,12 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     <Form {...voteForm}>
                         <form onSubmit={voteForm.handleSubmit(data => submitVote(data.outcome, data.votedOut))} className="space-y-4">
                             <FormField control={voteForm.control} name="outcome" render={({field}) => (
-                                <FormItem><FormLabel>Vote Outcome</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger></FormControl>
+                                <FormItem><FormLabel>Vote Outcome</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || undefined} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger></FormControl>
                                 <SelectContent><SelectItem value="caught">Traitor Caught</SelectItem><SelectItem value="not-caught">Traitor Not Caught</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                              <FormField control={voteForm.control} name="votedOut" render={({field}) => (
-                                <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || ""} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
-                                <SelectContent><SelectItem value={null}>None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || ""} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
+                                <SelectContent><SelectItem value="">None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'vote'}><Vote/>Submit Vote</Button>
                         </form>
