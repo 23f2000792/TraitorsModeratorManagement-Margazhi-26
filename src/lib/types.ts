@@ -25,4 +25,5 @@ export interface GameState {
   currentRoundName: RoundName;
   rounds: Record<RoundName, RoundState>;
   scoreboard: Record<House, number>;
+  eliminatedHouses: House[];
 }

@@ -26,6 +26,7 @@ const initialGameState: GameState = {
     ])
   ) as Record<RoundName, RoundState>,
   scoreboard: Object.fromEntries(HOUSES.map(h => [h, 100])) as Record<House, number>,
+  eliminatedHouses: [],
 };
 
 export const useGameState = () => {
@@ -33,7 +34,7 @@ export const useGameState = () => {
   const { toast } = useToast();
 
   const currentRound = gameState.rounds[gameState.currentRoundName];
-  const activeHouses = currentRound.participatingHouses;
+  const activeHouses = currentRound.participatingHouses.filter(h => !gameState.eliminatedHouses.includes(h));
 
 
   const updateCurrentRound = (updates: Partial<RoundState>) => {
@@ -67,13 +68,29 @@ export const useGameState = () => {
       toast({ title: 'Error', description: 'Round is already in progress.', variant: 'destructive' });
       return;
     }
-    if (currentRound.name.includes('Semi-Final') && activeHouses.length !== 6) {
-      toast({ title: 'Error', description: 'Please select 6 houses for the semi-final first.', variant: 'destructive' });
-      return;
+    if (currentRound.name.includes('Semi-Final') && activeHouses.length === 0) {
+        toast({ title: 'Error', description: 'Please select houses for the semi-final first.', variant: 'destructive' });
+        return;
     }
 
-    const traitorHouse = activeHouses[Math.floor(Math.random() * activeHouses.length)];
-    updateCurrentRound({ traitorHouse, phase: 'words' });
+    const availableHouses = currentRound.name.includes('Final')
+      ? HOUSES.filter(h => !gameState.eliminatedHouses.includes(h))
+      : activeHouses;
+      
+    if (availableHouses.length === 0) {
+        toast({ title: 'Error', description: 'No houses available to start the round.', variant: 'destructive' });
+        return;
+    }
+
+    const traitorHouse = availableHouses[Math.floor(Math.random() * availableHouses.length)];
+    
+    // For Final round, ensure all non-eliminated houses are participating
+    if (currentRound.name.includes('Final')) {
+        updateCurrentRound({ participatingHouses: availableHouses, traitorHouse, phase: 'words' });
+    } else {
+        updateCurrentRound({ traitorHouse, phase: 'words' });
+    }
+
     toast({ title: 'Round Started', description: `${traitorHouse} is the Traitor!` });
   };
   
@@ -106,29 +123,51 @@ export const useGameState = () => {
       return;
     }
     
-    const roundPoints = Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>;
-    let newScoreboard = { ...gameState.scoreboard };
+    let newEliminatedHouses = [...gameState.eliminatedHouses];
 
-    if (outcome === 'caught') {
-        activeHouses.forEach(house => {
-        if (house !== currentRound.traitorHouse) {
-          roundPoints[house] = 20;
-        } else {
-          roundPoints[house] = -50;
+    if (currentRound.name.includes('Semi-Final')) {
+        if (outcome === 'caught' && currentRound.traitorHouse) {
+            newEliminatedHouses.push(currentRound.traitorHouse);
+            toast({ title: 'Eliminated!', description: `${currentRound.traitorHouse} has been eliminated.` });
         }
-      });
-    } else {
-      if (currentRound.traitorHouse) {
-        roundPoints[currentRound.traitorHouse] = 50;
-      }
+        if (votedOut) {
+            if (!newEliminatedHouses.includes(votedOut)) {
+                newEliminatedHouses.push(votedOut);
+                 toast({ title: 'Voted Out!', description: `${votedOut} has been voted out.` });
+            }
+        }
+        setGameState(prev => ({...prev, eliminatedHouses: newEliminatedHouses}));
+        updateCurrentRound({ voteOutcome: outcome, votedOutHouse: votedOut, phase: 'reveal' });
+
+    } else { // Final round logic
+        const roundPoints = Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>;
+        let newScoreboard = { ...gameState.scoreboard };
+        const participating = activeHouses;
+
+        if (outcome === 'caught') {
+            participating.forEach(house => {
+            if (house !== currentRound.traitorHouse) {
+              roundPoints[house] = 20;
+            } else {
+              roundPoints[house] = -50;
+            }
+          });
+        } else {
+          if (currentRound.traitorHouse) {
+            roundPoints[currentRound.traitorHouse] = 50;
+          }
+        }
+        if (votedOut) {
+            newScoreboard[votedOut] -= 10; // Small penalty for being voted out
+        }
+
+        participating.forEach(house => {
+            newScoreboard[house] += roundPoints[house];
+        });
+
+        updateCurrentRound({ voteOutcome: outcome, votedOutHouse: votedOut, phase: 'reveal', points: roundPoints });
+        setGameState(prev => ({...prev, scoreboard: newScoreboard}));
     }
-
-    activeHouses.forEach(house => {
-        newScoreboard[house] += roundPoints[house];
-    });
-
-    updateCurrentRound({ voteOutcome: outcome, votedOutHouse: votedOut, phase: 'reveal', points: roundPoints });
-    setGameState(prev => ({...prev, scoreboard: newScoreboard}));
 
     toast({ title: 'Vote Submitted', description: 'The results are in!' });
   };
@@ -142,16 +181,27 @@ export const useGameState = () => {
   };
 
   const endRound = () => {
-    updateCurrentRound({ locked: true, phase: 'idle' });
+    updateCurrentRound({ locked: true });
      const nextRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName) + 1;
      if(nextRoundIndex < ROUND_NAMES.length) {
         const nextRoundName = ROUND_NAMES[nextRoundIndex];
-        const nextRound = gameState.rounds[nextRoundName];
-        if (nextRound.name.includes('Semi-Final') && nextRound.participatingHouses.length === 0) {
-            setGameState(prev => ({...prev, currentRoundName: nextRoundName}));
-            updateCurrentRound({phase: 'setup'});
+        selectRound(nextRoundName);
+        if (nextRoundName.includes('Semi-Final')) {
+          setGameState(prev => ({
+            ...prev,
+            rounds: {
+              ...prev.rounds,
+              [nextRoundName]: { ...prev.rounds[nextRoundName], phase: 'setup' }
+            }
+          }));
         } else {
-            selectRound(nextRoundName);
+           setGameState(prev => ({
+            ...prev,
+            rounds: {
+              ...prev.rounds,
+              [nextRoundName]: { ...prev.rounds[nextRoundName], phase: 'idle' }
+            }
+          }));
         }
      }
     toast({ title: 'Round Ended', description: 'The round is now locked.' });

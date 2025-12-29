@@ -3,19 +3,30 @@
 import { GameState, House } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CountdownTimer } from './countdown-timer';
-import { Users } from 'lucide-react';
+import { Users, Shield, Skull } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 type PublicDisplayProps = {
   gameState: GameState;
 };
 
 const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
-  const { currentRoundName, rounds } = gameState;
+  const { currentRoundName, rounds, eliminatedHouses } = gameState;
   const round = rounds[currentRoundName];
 
   switch (round.phase) {
     case 'idle':
+        if (currentRoundName === 'Final' && round.locked) {
+            const winner = Object.entries(gameState.scoreboard).sort(([,a],[,b]) => b - a)[0];
+            return (
+                 <div className="text-center flex flex-col items-center gap-8">
+                    <h2 className="text-5xl font-headline text-primary animate-pulse">WINNER!</h2>
+                    <p className="text-8xl font-bold text-accent">{winner[0]}</p>
+                    <p className="text-4xl text-white">Score: {winner[1]}</p>
+                </div>
+            )
+        }
         return (
             <div className="text-center flex flex-col items-center gap-8">
                 <Image src="/poster.jpg" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-lg border-4 border-primary" data-ai-hint="game poster" />
@@ -42,6 +53,8 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
     case 'vote':
       return <div className="text-center"><p className="text-4xl font-headline text-destructive animate-pulse">VOTING IN PROGRESS</p></div>;
     case 'reveal':
+        const houseWasEliminated = round.voteOutcome === 'caught' || round.votedOutHouse;
+
         return (
             <Card className="bg-transparent border-accent/20">
                 <CardHeader><CardTitle className="text-primary text-center font-headline text-3xl">THE REVEAL</CardTitle></CardHeader>
@@ -50,10 +63,29 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
                         <p className="text-muted-foreground">The Traitor was...</p>
                         <p className="font-bold text-2xl text-destructive">{round.traitorHouse}</p>
                     </div>
-                    <div className="animate-fade-in-up animation-delay-300">
-                        <p className="text-muted-foreground">Result</p>
-                        <p className="font-bold text-2xl text-primary">{round.voteOutcome === 'caught' ? 'TRAITOR CAUGHT' : 'TRAITOR ESCAPED'}</p>
-                    </div>
+                    
+                    {currentRoundName.includes('Semi-Final') ? (
+                         <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
+                            {round.voteOutcome === 'caught' ? (
+                                <>
+                                <Skull className="w-12 h-12 text-destructive" />
+                                <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
+                                </>
+                            ) : (
+                                <>
+                                <Shield className="w-12 h-12 text-green-500" />
+                                <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
+                                </>
+                            )}
+                         </div>
+                    ) : (
+                         <div className="animate-fade-in-up animation-delay-300">
+                            <p className="text-muted-foreground">Result</p>
+                            <p className="font-bold text-2xl text-primary">{round.voteOutcome === 'caught' ? 'TRAITOR CAUGHT' : 'TRAITOR ESCAPED'}</p>
+                        </div>
+                    )}
+                   
+
                      <div className="animate-fade-in-up animation-delay-500 grid grid-cols-2 gap-4 pt-4">
                         <div>
                             <p className="text-muted-foreground">Common Word</p>
@@ -64,6 +96,12 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
                             <p className="font-bold text-2xl">{round.traitorWord}</p>
                         </div>
                     </div>
+                     {round.votedOutHouse && (
+                        <div className="animate-fade-in-up animation-delay-700 text-center">
+                             <p className="text-muted-foreground">Voted Out</p>
+                             <p className="font-bold text-2xl text-amber-500">{round.votedOutHouse}</p>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         );
@@ -73,7 +111,8 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
 };
 
 export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
-  const { eventName, currentRoundName } = gameState;
+  const { eventName, currentRoundName, rounds, eliminatedHouses } = gameState;
+  const round = rounds[currentRoundName];
 
   return (
     <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
@@ -87,6 +126,23 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
       <main className="flex-grow flex items-center justify-center text-6xl font-bold">
         <PhaseDisplay gameState={gameState} />
       </main>
+
+      {eliminatedHouses.length > 0 && (
+          <footer className="mt-8">
+            <Card className="bg-background/50">
+                <CardHeader>
+                    <CardTitle className="text-xl text-center text-destructive font-headline">Eliminated Houses</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+                        {eliminatedHouses.map(house => (
+                            <p key={house} className="text-lg text-muted-foreground line-through">{house}</p>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+          </footer>
+      )}
     </div>
   );
 };

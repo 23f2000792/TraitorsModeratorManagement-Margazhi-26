@@ -22,6 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Eye, Play, Timer, Vote, Shuffle, MinusCircle, PlusCircle, Lock, Users } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
+import { cn } from '@/lib/utils';
 
 type ModeratorDashboardProps = ReturnType<typeof useGameState>;
 
@@ -77,7 +78,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                             {ROUND_NAMES.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    <Button onClick={startRound} disabled={round.phase !== 'idle' || round.locked}><Shuffle />Start Round</Button>
+                    <Button onClick={startRound} disabled={(round.phase !== 'idle' && round.phase !== 'setup') || round.locked}><Shuffle />Start Round</Button>
                 </CardContent>
             </Card>
 
@@ -106,6 +107,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                                     control={housesForm.control}
                                     name="houses"
                                     render={({ field }) => {
+                                        const isEliminated = gameState.eliminatedHouses.includes(house);
                                         return (
                                         <FormItem
                                             key={house}
@@ -113,7 +115,8 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                                         >
                                             <FormControl>
                                             <Checkbox
-                                                checked={field.value?.includes(house)}
+                                                checked={!isEliminated && field.value?.includes(house)}
+                                                disabled={isEliminated}
                                                 onCheckedChange={(checked) => {
                                                 return checked
                                                     ? field.onChange([...(field.value || []), house])
@@ -125,7 +128,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                                                 }}
                                             />
                                             </FormControl>
-                                            <FormLabel className="font-normal">
+                                            <FormLabel className={cn("font-normal", isEliminated && "text-muted-foreground line-through")}>
                                             {house}
                                             </FormLabel>
                                         </FormItem>
@@ -172,7 +175,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                             )}/>
                              <FormField control={voteForm.control} name="votedOut" render={({field}) => (
                                 <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || ""} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
-                                <SelectContent>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                <SelectContent><SelectItem value={null}>None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'vote'}><Vote/>Submit Vote</Button>
                         </form>
@@ -191,23 +194,25 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
             <Card>
                 <CardHeader>
                     <CardTitle>Scoreboard</CardTitle>
-                    <CardDescription>Live scores for all houses.</CardDescription>
+                    <CardDescription>
+                        {currentRoundName.includes('Final') ? 'Live scores for all houses.' : 'Scoreboard is only active during the Final round.'}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead>{currentRoundName.includes('Final') && <TableHead>Actions</TableHead>}</TableRow></TableHeader>
                         <TableBody>
                             {Object.entries(scoreboard).sort(([, a], [, b]) => b - a).map(([house, score]) => (
                                 <TableRow key={house}>
                                     <TableCell className="font-medium flex items-center gap-2">
                                       {round.traitorHouse === house && currentRoundName === round.name && activeHouses.includes(house as House) && <Eye className="w-4 h-4 text-destructive" />}
-                                      {house}
+                                      <span className={cn(gameState.eliminatedHouses.includes(house as House) && "line-through text-muted-foreground")}>{house}</span>
                                     </TableCell>
                                     <TableCell>{score}</TableCell>
-                                    <TableCell className="flex gap-2">
+                                    {currentRoundName.includes('Final') && <TableCell className="flex gap-2">
                                         <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, 10)}><PlusCircle size={16}/></Button>
                                         <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, -10)}><MinusCircle size={16}/></Button>
-                                    </TableCell>
+                                    </TableCell>}
                                 </TableRow>
                             ))}
                         </TableBody>
