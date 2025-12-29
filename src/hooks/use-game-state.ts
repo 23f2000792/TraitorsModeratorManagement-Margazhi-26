@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { produce } from 'immer';
-import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, IndividualVote } from '@/lib/types';
+import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 const initialEliminatedHouses: House[] = [];
@@ -123,13 +123,8 @@ export const useGameState = () => {
     toast({ title: 'Describe Phase Over', description: 'Voting is now open.' });
   };
 
-  const submitVote = (votes: IndividualVote[]) => {
+  const submitVoteOutcome = (outcome: VoteOutcome) => {
     if (currentRound.phase !== 'vote' || !currentSubRound) return;
-    
-    const nonTraitorVotes = votes.filter(v => v.voterHouse !== currentSubRound.traitorHouse);
-    const correctVotes = nonTraitorVotes.filter(v => v.votedFor === currentSubRound.traitorHouse).length;
-    const totalNonTraitorVoters = currentRound.participatingHouses.filter(h => h !== currentSubRound.traitorHouse && !gameState.eliminatedHouses.includes(h)).length * 3;
-    const outcome = totalNonTraitorVoters > 0 && (correctVotes / totalNonTraitorVoters) > 0.5 ? 'caught' : 'not-caught';
     
     if (outcome === 'caught') {
         setGameState(prev => produce(prev, draft => {
@@ -139,16 +134,15 @@ export const useGameState = () => {
                 toast({ title: 'Traitor Eliminated!', description: `${traitor} is out of the game.` });
             }
         }));
+    } else {
+        toast({ title: 'Traitor Survived!', description: `The Traitor was not identified.` });
     }
 
     updateCurrentRound(draft => {
         const subRound = draft.subRounds![draft.currentSubRoundIndex];
         subRound.voteOutcome = outcome;
-        subRound.individualVotes = votes;
         draft.phase = 'reveal';
     });
-
-    toast({ title: 'Vote Submitted', description: 'The results are in!' });
   };
 
   const endRound = () => {
@@ -180,7 +174,7 @@ export const useGameState = () => {
     startRound,
     setWords,
     startPhaseTimer,
-    submitVote,
+    submitVoteOutcome,
     endRound,
     setParticipatingHouses,
     activeHouses,

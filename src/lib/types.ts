@@ -6,11 +6,7 @@ export const ROUND_NAMES: RoundName[] = ['Semi-Final 1', 'Semi-Final 2'];
 
 export type Phase = 'idle' | 'setup'| 'words' | 'describe' | 'vote' | 'reveal';
 
-export type IndividualVote = {
-  voterHouse: House;
-  voterIndex: number; // 0, 1, 2
-  votedFor: House | null;
-}
+export type VoteOutcome = 'caught' | 'not-caught';
 
 export interface SubRound {
   roundIndex: number; 
@@ -19,9 +15,8 @@ export interface SubRound {
   traitorWord: string;
   wordSet: boolean;
   timerEndsAt: number | null;
-  voteOutcome: 'caught' | 'not-caught' | null;
+  voteOutcome: VoteOutcome | null;
   votedOutHouse: House | null;
-  individualVotes?: IndividualVote[];
 }
 
 export interface RoundState {

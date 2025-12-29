@@ -1,6 +1,6 @@
 'use client';
 
-import { GameState, RoundName, House, HOUSES, ROUND_NAMES, IndividualVote } from '@/lib/types';
+import { GameState, RoundName, House, HOUSES, ROUND_NAMES, VoteOutcome } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,32 +35,19 @@ const housesSchema = z.object({
   houses: z.array(z.string()).refine(value => value.length === 6, 'You must select exactly 6 houses.'),
 });
 
-const voteSchema = z.object({
-  votes: z.array(z.object({
-    voterHouse: z.string(),
-    voterIndex: z.number(),
-    votedFor: z.string().nullable(),
-  })),
+const voteOutcomeSchema = z.object({
+    outcome: z.enum(['caught', 'not-caught']),
 });
 
 export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
-    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, endRound, setParticipatingHouses, activeHouses, currentSubRound, endDescribePhase } = props;
+    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVoteOutcome, endRound, setParticipatingHouses, activeHouses, currentSubRound, endDescribePhase } = props;
     const { currentRoundName, rounds } = gameState;
     const round = rounds[currentRoundName];
 
     const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: '', traitorWord: '' } });
     const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: round.participatingHouses || [] } });
-    const voteForm = useForm<z.infer<typeof voteSchema>>({
-        defaultValues: {
-            votes: round.participatingHouses.flatMap(house => [0,1,2].map(i => ({ voterHouse: house, voterIndex: i, votedFor: null })))
-        }
-    });
+    const voteOutcomeForm = useForm<z.infer<typeof voteOutcomeSchema>>();
 
-    useEffect(() => {
-        voteForm.reset({
-            votes: round.participatingHouses.flatMap(house => [0,1,2].map(i => ({ voterHouse: house, voterIndex: i, votedFor: null })))
-        });
-    }, [round.participatingHouses, voteForm]);
 
     useEffect(() => {
         wordsForm.reset({
@@ -197,37 +184,26 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     )}
 
                     {round.phase === 'vote' && (
-                        <Form {...voteForm}>
-                            <form onSubmit={voteForm.handleSubmit(data => submitVote(data.votes as IndividualVote[]))} className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {round.participatingHouses.map(house => (
-                                    <div key={house}>
-                                        <h4 className="font-bold mb-2">{house}</h4>
-                                        {[0,1,2].map(memberIndex => {
-                                            const fieldIndex = round.participatingHouses.indexOf(house) * 3 + memberIndex;
-                                            return (
-                                                <FormField
-                                                    key={fieldIndex}
-                                                    control={voteForm.control}
-                                                    name={`votes.${fieldIndex}.votedFor`}
-                                                    render={({ field }) => (
-                                                        <FormItem className="mb-2">
-                                                            <FormLabel>Member {memberIndex + 1}</FormLabel>
-                                                            <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
-                                                                <FormControl><SelectTrigger><SelectValue placeholder="Vote..." /></SelectTrigger></FormControl>
-                                                                <SelectContent>
-                                                                    {round.participatingHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            )
-                                        })}
-                                    </div>
-                                ))}
-                                </div>
-                                <Button type="submit"><Vote/>Submit All Votes</Button>
+                        <Form {...voteOutcomeForm}>
+                            <form onSubmit={voteOutcomeForm.handleSubmit(data => submitVoteOutcome(data.outcome as VoteOutcome))} className="space-y-4">
+                                <FormField
+                                    control={voteOutcomeForm.control}
+                                    name="outcome"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Declare Vote Outcome</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select vote outcome..." /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="caught">Traitor Caught</SelectItem>
+                                                    <SelectItem value="not-caught">Traitor Survived</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit"><Vote/>Submit Outcome</Button>
                             </form>
                         </Form>
                     )}
