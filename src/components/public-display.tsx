@@ -1,33 +1,44 @@
 'use client';
 
-import { GameState, House, SemiFinalSubRound } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GameState, House, SubRound, RoundResult } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CountdownTimer } from './countdown-timer';
-import { Users, Shield, Skull } from 'lucide-react';
+import { Users, Shield, Skull, Eye, Trophy } from 'lucide-react';
 import Image from 'next/image';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type PublicDisplayProps = {
   gameState: GameState;
 };
 
 const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
-  const { currentRoundName, rounds } = gameState;
+  const { currentRoundName, rounds, scoreboard } = gameState;
   const round = rounds[currentRoundName];
   const isSemiFinal = currentRoundName.includes('Semi-Final');
-  const currentSubRound: SemiFinalSubRound | undefined = isSemiFinal ? round.subRounds?.[round.semiFinalRound] : undefined;
-  const roundData = isSemiFinal ? currentSubRound : round;
+  const isFinal = currentRoundName === 'Final';
+  const currentSubRound: SubRound | undefined = round.subRounds?.[round.currentSubRoundIndex];
+  
+  const renderWinner = () => {
+    const winner = Object.entries(scoreboard).sort(([,a],[,b]) => b - a)[0];
+    if (!winner) return null;
+    return (
+         <div className="text-center flex flex-col items-center gap-8">
+            <Trophy className="w-24 h-24 text-primary animate-pulse" />
+            <h2 className="text-5xl font-headline text-accent">WINNER!</h2>
+            <p className="text-8xl font-bold text-primary">{winner[0]}</p>
+            <p className="text-4xl text-white">Final Score: {winner[1]}</p>
+        </div>
+    );
+  };
 
   switch (round.phase) {
     case 'idle':
-        if (currentRoundName === 'Final' && round.locked) {
-            const winner = Object.entries(gameState.scoreboard).sort(([,a],[,b]) => b - a)[0];
-            return (
-                 <div className="text-center flex flex-col items-center gap-8">
-                    <h2 className="text-5xl font-headline text-primary animate-pulse">WINNER!</h2>
-                    <p className="text-8xl font-bold text-accent">{winner[0]}</p>
-                    <p className="text-4xl text-white">Score: {winner[1]}</p>
+        if (round.locked && !isFinal) {
+             return (
+                <div className="text-center flex flex-col items-center gap-8">
+                    <p className="text-2xl text-accent animate-pulse">Waiting for next round...</p>
                 </div>
-            )
+            );
         }
         return (
             <div className="text-center flex flex-col items-center gap-8">
@@ -55,50 +66,94 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
     case 'vote':
       return <div className="text-center"><p className="text-4xl font-headline text-destructive animate-pulse">VOTING IN PROGRESS</p></div>;
     case 'reveal':
-        if (!roundData) return null;
+        if (!currentSubRound) return null;
+
+        if (isSemiFinal) {
+            return (
+                <Card className="bg-transparent border-accent/20">
+                    <CardHeader><CardTitle className="text-primary text-center font-headline text-3xl">THE REVEAL</CardTitle></CardHeader>
+                    <CardContent className="space-y-6 text-xl text-center">
+                        <div className="animate-fade-in-up animation-delay-100">
+                            <p className="text-muted-foreground">The Traitor was...</p>
+                            <p className="font-bold text-2xl text-destructive">{currentSubRound.traitorHouse}</p>
+                        </div>
+                        
+                        <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
+                            {currentSubRound.voteOutcome === 'caught' ? (
+                                <>
+                                <Skull className="w-12 h-12 text-destructive" />
+                                <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
+                                </>
+                            ) : (
+                                <>
+                                <Shield className="w-12 h-12 text-green-500" />
+                                <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
+                                </>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            );
+        }
+        if(isFinal) {
+             const result = round.finalResults?.[currentSubRound.roundIndex];
+             if (!result) return null;
+             return (
+                <Card className="bg-transparent border-accent/20 w-full max-w-2xl">
+                    <CardHeader>
+                        <CardTitle className="text-primary text-center font-headline text-3xl">Round {result.roundIndex + 1} Summary</CardTitle>
+                        <CardDescription className="text-center">Points Awarded This Round</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>House</TableHead>
+                                    <TableHead className="text-right">Points</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {Object.entries(result.points).map(([house, points]) => (
+                                <TableRow key={house}>
+                                    <TableCell>{house}</TableCell>
+                                    <TableCell className={`text-right font-bold ${points > 0 ? 'text-green-500' : 'text-destructive'}`}>
+                                        {points > 0 ? '+' : ''}{points}
+                                    </TableCell>
+                                </TableRow>
+                                ))}
+                            </TableBody>
+                         </Table>
+                    </CardContent>
+                </Card>
+             )
+        }
+        return null;
+    case 'final-results':
+        if (!isFinal || !round.finalResults || round.finalResults.length === 0) return renderWinner();
 
         return (
-            <Card className="bg-transparent border-accent/20">
-                <CardHeader><CardTitle className="text-primary text-center font-headline text-3xl">THE REVEAL</CardTitle></CardHeader>
-                <CardContent className="space-y-6 text-xl text-center">
-                    <div className="animate-fade-in-up animation-delay-100">
-                        <p className="text-muted-foreground">The Traitor was...</p>
-                        <p className="font-bold text-2xl text-destructive">{roundData.traitorHouse}</p>
-                    </div>
-                    
-                    <div className="animate-fade-in-up animation-delay-300 flex items-center justify-center gap-4">
-                        {roundData.voteOutcome === 'caught' ? (
-                            <>
-                            <Skull className="w-12 h-12 text-destructive" />
-                            <p className="font-bold text-2xl text-primary">TRAITOR ELIMINATED</p>
-                            </>
-                        ) : (
-                            <>
-                            <Shield className="w-12 h-12 text-green-500" />
-                            <p className="font-bold text-2xl text-green-500">TRAITOR SURVIVED</p>
-                            </>
-                        )}
-                    </div>
-                   
-                     <div className="animate-fade-in-up animation-delay-500 grid grid-cols-2 gap-4 pt-4">
-                        <div>
-                            <p className="text-muted-foreground">Common Word</p>
-                            <p className="font-bold text-2xl">{roundData.commonWord}</p>
+            <div className="w-full max-w-4xl mx-auto">
+                 <Card className="bg-transparent border-accent/20">
+                    <CardHeader>
+                        <CardTitle className="text-primary text-center font-headline text-3xl">GRAND FINALE RESULTS</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {round.finalResults.map(result => (
+                             <Card key={result.roundIndex} className="bg-card/50">
+                                <CardHeader>
+                                    <CardTitle>Round {result.roundIndex + 1}: <span className="text-destructive">{result.traitorHouse} was the Traitor</span></CardTitle>
+                                    <CardDescription>Outcome: {result.outcome}</CardDescription>
+                                </CardHeader>
+                             </Card>
+                        ))}
+
+                        <div className="pt-8">
+                           {renderWinner()}
                         </div>
-                        <div>
-                            <p className="text-muted-foreground">Traitor Word</p>
-                            <p className="font-bold text-2xl">{roundData.traitorWord}</p>
-                        </div>
-                    </div>
-                     {roundData.votedOutHouse && (
-                        <div className="animate-fade-in-up animation-delay-700 text-center">
-                             <p className="text-muted-foreground">Voted Out</p>
-                             <p className="font-bold text-2xl text-amber-500">{roundData.votedOutHouse}</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        );
+                    </CardContent>
+                 </Card>
+            </div>
+        )
     default:
       return null;
   }
@@ -108,8 +163,9 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
   const { eventName, currentRoundName, rounds, eliminatedHouses } = gameState;
   const round = rounds[currentRoundName];
   const isSemiFinal = currentRoundName.includes('Semi-Final');
+  const currentSubRound = round.subRounds?.[round.currentSubRoundIndex];
+  const roundTitle = currentSubRound ? `${currentRoundName} - Round ${round.currentSubRoundIndex + 1}` : currentRoundName;
 
-  const roundTitle = isSemiFinal ? `${currentRoundName} - Round ${round.semiFinalRound + 1}` : currentRoundName;
 
   return (
     <div className="flex flex-col h-full w-full p-6 md:p-10 bg-gradient-to-b from-background to-black">
@@ -124,7 +180,7 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
         <PhaseDisplay gameState={gameState} />
       </main>
 
-      {eliminatedHouses.length > 0 && !currentRoundName.includes('Final') && (
+      {eliminatedHouses.length > 0 && isSemiFinal && (
           <footer className="mt-8">
             <Card className="bg-background/50">
                 <CardHeader>

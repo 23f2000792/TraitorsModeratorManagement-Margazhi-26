@@ -1,7 +1,7 @@
 'use client';
 
-import { GameState, RoundName, House, HOUSES, ROUND_NAMES } from '@/lib/types';
-import { useForm } from 'react-hook-form';
+import { GameState, RoundName, House, HOUSES, ROUND_NAMES, IndividualVote } from '@/lib/types';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, Play, Timer, Vote, Shuffle, MinusCircle, PlusCircle, Lock, Users, Forward, Flag } from 'lucide-react';
+import { Eye, Play, Timer, Vote, Shuffle, Lock, Users, Forward, Flag, Trophy } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
@@ -32,41 +32,45 @@ const wordsSchema = z.object({
     traitorWord: z.string().min(1, 'Traitor word is required.'),
 });
 
-const timerSchema = z.object({
-    duration: z.coerce.number().min(1, 'Duration must be at least 1 second.'),
-});
-
-const voteSchema = z.object({
-    outcome: z.enum(['caught', 'not-caught']),
-    votedOut: z.string().nullable(),
-});
-
 const housesSchema = z.object({
   houses: z.array(z.string()).refine(value => value.length === 6, 'You must select exactly 6 houses.'),
 });
 
+const finalVoteSchema = z.object({
+  votes: z.array(z.object({
+    voterHouse: z.string(),
+    voterIndex: z.number(),
+    votedFor: z.string().nullable(),
+  })),
+});
 
 export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
-    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, applyScoreAdjustment, endRound, setParticipatingHouses, activeHouses, currentSubRound, isSemiFinal, endDescribePhase, endSemiFinals } = props;
+    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, endRound, setParticipatingHouses, activeHouses, currentSubRound, isSemiFinal, isFinal, endDescribePhase, endSemiFinals } = props;
     const { currentRoundName, rounds, scoreboard } = gameState;
     const round = rounds[currentRoundName];
-    const roundData = isSemiFinal ? currentSubRound : round;
 
     const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: '', traitorWord: '' } });
-    const timerForm = useForm<z.infer<typeof timerSchema>>({ resolver: zodResolver(timerSchema), defaultValues: { duration: 30 } });
-    const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema), defaultValues: { outcome: 'caught', votedOut: null } });
     const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: round.participatingHouses || [] } });
+    const voteForm = useForm<z.infer<typeof finalVoteSchema>>({
+        defaultValues: {
+            votes: round.participatingHouses.flatMap(house => [0,1,2].map(i => ({ voterHouse: house, voterIndex: i, votedFor: null })))
+        }
+    });
+
+    const { fields } = useFieldArray({ control: voteForm.control, name: "votes"});
+
+     useEffect(() => {
+        voteForm.reset({
+            votes: round.participatingHouses.flatMap(house => [0,1,2].map(i => ({ voterHouse: house, voterIndex: i, votedFor: null })))
+        });
+    }, [round.participatingHouses, voteForm]);
 
     useEffect(() => {
         wordsForm.reset({
-            commonWord: roundData?.commonWord || '',
-            traitorWord: roundData?.traitorWord || '',
+            commonWord: currentSubRound?.commonWord || '',
+            traitorWord: currentSubRound?.traitorWord || '',
         });
-        voteForm.reset({
-            outcome: roundData?.voteOutcome || 'caught',
-            votedOut: roundData?.votedOutHouse || null,
-        });
-    }, [roundData, wordsForm, voteForm]);
+    }, [currentSubRound, wordsForm]);
 
 
   return (
@@ -92,13 +96,13 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                             {ROUND_NAMES.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
                         </SelectContent>
                     </Select>
-                    {isSemiFinal && round.locked && <Button onClick={endSemiFinals}><Flag /> Finalize Semi-Finals</Button>}
+                    {(gameState.rounds['Semi-Final 1'].locked && gameState.rounds['Semi-Final 2'].locked && !isFinal) && <Button onClick={endSemiFinals}><Flag /> Finalize Semi-Finals & Start Final</Button>}
                 </CardContent>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>{currentRoundName} {isSemiFinal && `- Round ${round.semiFinalRound + 1} of ${round.subRounds?.length}`}</CardTitle>
+                    <CardTitle>{currentRoundName} {currentSubRound && `- Round ${currentSubRound.roundIndex + 1} of ${round.subRounds?.length}`}</CardTitle>
                     <CardDescription>Current Phase: <span className="font-bold text-primary">{round.phase}</span> {round.locked && "(Locked)"}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -160,7 +164,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                         </Form>
                     )}
                     
-                    { round.phase === 'idle' && !round.locked && <Button onClick={startRound}><Shuffle /> Start Round</Button>}
+                    { round.phase === 'idle' && !round.locked && <Button onClick={startRound}><Shuffle /> Start {isFinal ? "Final" : "Round"}</Button>}
 
                     {/* Word Assignment */}
                     {round.phase === 'words' && (
@@ -195,23 +199,51 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     {/* Voting */}
                     {round.phase === 'vote' && (
                         <Form {...voteForm}>
-                            <form onSubmit={voteForm.handleSubmit(data => submitVote(data.outcome, data.votedOut as House | null))} className="space-y-4">
-                                <FormField control={voteForm.control} name="outcome" render={({field}) => (
-                                    <FormItem><FormLabel>Vote Outcome</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || undefined}><FormControl><SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger></FormControl>
-                                    <SelectContent><SelectItem value="caught">Traitor Caught</SelectItem><SelectItem value="not-caught">Traitor Not Caught</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={voteForm.control} name="votedOut" render={({field}) => (
-                                    <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value || "none"}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
-                                    <SelectContent><SelectItem value="none">None</SelectItem>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                )}/>
-                                <Button type="submit"><Vote/>Submit Vote</Button>
+                            <form onSubmit={voteForm.handleSubmit(data => submitVote(data.votes as IndividualVote[]))} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {round.participatingHouses.map(house => (
+                                    <div key={house}>
+                                        <h4 className="font-bold mb-2">{house}</h4>
+                                        {[0,1,2].map(memberIndex => {
+                                            const fieldIndex = round.participatingHouses.indexOf(house) * 3 + memberIndex;
+                                            return (
+                                                <FormField
+                                                    key={fieldIndex}
+                                                    control={voteForm.control}
+                                                    name={`votes.${fieldIndex}.votedFor`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="mb-2">
+                                                            <FormLabel>Member {memberIndex + 1}</FormLabel>
+                                                            <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                                                                <FormControl><SelectTrigger><SelectValue placeholder="Vote..." /></SelectTrigger></FormControl>
+                                                                <SelectContent>
+                                                                    {round.participatingHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                ))}
+                                </div>
+                                <Button type="submit"><Vote/>Submit All Votes</Button>
                             </form>
                         </Form>
                     )}
 
                     {/* Reveal & End */}
                     {round.phase === 'reveal' && (
-                         <Button onClick={endRound} variant="destructive"><Lock/> {isSemiFinal ? "End Sub-Round" : "Lock Round"}</Button>
+                         <Button onClick={endRound} variant="destructive"><Lock/> {isFinal ? "Next Sub-Round" : "End Sub-Round"}</Button>
+                    )}
+                    
+                     {round.phase === 'final-results' && (
+                         <div className="text-center">
+                            <Trophy className="w-16 h-16 mx-auto text-primary"/>
+                            <p className="text-2xl mt-4">Grand Finale Complete!</p>
+                            <p className="text-muted-foreground">Check the scoreboard for final standings.</p>
+                         </div>
                     )}
 
                 </CardContent>
@@ -228,19 +260,16 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                 </CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead>{currentRoundName === 'Final' && <TableHead>Actions</TableHead>}</TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {Object.entries(scoreboard).sort(([, a], [, b]) => b - a).map(([house, score]) => (
                                 <TableRow key={house}>
                                     <TableCell className="font-medium flex items-center gap-2">
-                                      {((isSemiFinal && currentSubRound?.traitorHouse === house) || (!isSemiFinal && round.traitorHouse === house)) && <Eye className="w-4 h-4 text-destructive" />}
+                                      {/* Traitor icon hidden during final until results are revealed */}
+                                      {(isSemiFinal && currentSubRound?.traitorHouse === house) && <Eye className="w-4 h-4 text-destructive" />}
                                       <span className={cn(gameState.eliminatedHouses.includes(house as House) && "line-through text-muted-foreground")}>{house}</span>
                                     </TableCell>
                                     <TableCell>{score}</TableCell>
-                                    {currentRoundName === 'Final' && <TableCell className="flex gap-2">
-                                        <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, 10)}><PlusCircle size={16}/></Button>
-                                        <Button size="icon" variant="outline" onClick={() => applyScoreAdjustment(house as House, -10)}><MinusCircle size={16}/></Button>
-                                    </TableCell>}
                                 </TableRow>
                             ))}
                         </TableBody>
