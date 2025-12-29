@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { produce } from 'immer';
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SemiFinalSubRound } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { produce } from 'immer';
+
+const initialEliminatedHouses: House[] = [];
 
 const initialGameState: GameState = {
   eventName: 'THE TRAITORS',
@@ -14,7 +16,7 @@ const initialGameState: GameState = {
       {
         name: name,
         phase: name.includes('Semi-Final') ? 'setup' : 'idle',
-        participatingHouses: name.includes('Final') ? HOUSES.filter(h => !initialGameState.eliminatedHouses.includes(h)) : [],
+        participatingHouses: name.includes('Final') ? HOUSES.filter(h => !initialEliminatedHouses.includes(h)) : [],
         // Semi-final specific
         semiFinalRound: 0,
         subRounds: name.includes('Semi-Final') ? [] : undefined,
@@ -31,7 +33,7 @@ const initialGameState: GameState = {
     ])
   ) as Record<RoundName, RoundState>,
   scoreboard: Object.fromEntries(HOUSES.map(h => [h, 100])) as Record<House, number>,
-  eliminatedHouses: [],
+  eliminatedHouses: initialEliminatedHouses,
 };
 
 // Fisher-Yates shuffle
