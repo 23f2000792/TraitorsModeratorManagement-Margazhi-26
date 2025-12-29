@@ -32,7 +32,7 @@ const initialGameState: GameState = {
       },
     ])
   ) as Record<RoundName, RoundState>,
-  scoreboard: Object.fromEntries(HOUSES.map(h => [h, 100])) as Record<House, number>,
+  scoreboard: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
   eliminatedHouses: initialEliminatedHouses,
 };
 
