@@ -4,7 +4,7 @@ import { GameState, House } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CountdownTimer } from './countdown-timer';
-import { Eye } from 'lucide-react';
+import { Eye, Users } from 'lucide-react';
 import { TraitorLogo } from './icons';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -23,6 +23,14 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
             <div className="text-center flex flex-col items-center gap-8">
                 <Image src="/poster.jpg" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-lg border-4 border-primary" data-ai-hint="game poster" />
                 <p className="text-2xl text-accent animate-pulse">Waiting for the round to begin...</p>
+            </div>
+        );
+    case 'setup':
+        return (
+            <div className="text-center flex flex-col items-center gap-8">
+                <Users className="w-24 h-24 text-primary animate-pulse" />
+                <p className="text-3xl font-headline text-accent">House Selection for {currentRoundName}</p>
+                <p className="text-xl text-muted-foreground">The moderator is choosing which houses will compete.</p>
             </div>
         );
     case 'words':
@@ -79,6 +87,9 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
 export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
   const { eventName, currentRoundName, rounds, scoreboard } = gameState;
   const round = rounds[currentRoundName];
+  const activeHouses = round.participatingHouses;
+  
+  const relevantScores = Object.entries(scoreboard).filter(([house]) => activeHouses.includes(house as House)).sort(([, a], [, b]) => b - a);
 
   return (
     <div className="flex flex-col h-full p-6 md:p-10 bg-gradient-to-b from-blue-900 via-blue-900 to-black">
@@ -93,7 +104,7 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
         <PhaseDisplay gameState={gameState} />
       </main>
 
-      {(round.phase === 'reveal' || round.phase === 'summary') && (
+      {(round.phase === 'reveal' || round.phase === 'summary' || round.phase === 'describe' || round.phase === 'vote') && (
          <footer className="mt-8">
             <Card>
                 <CardHeader>
@@ -109,14 +120,14 @@ export const PublicDisplay = ({ gameState }: PublicDisplayProps) => {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {Object.entries(scoreboard).map(([house, score]) => (
+                        {relevantScores.map(([house, score]) => (
                         <TableRow key={house} className={cn(round.traitorHouse === house && 'bg-destructive/20')}>
                             <TableCell className="font-medium flex items-center gap-2">
                                 {round.traitorHouse === house && <Eye className="w-4 h-4 text-destructive" />}
                                 {house}
                             </TableCell>
                             <TableCell className={cn("text-right font-mono", round.points[house as House] > 0 ? 'text-green-400' : 'text-red-500')}>
-                                {round.points[house as House] > 0 ? '+' : ''}{round.points[house as House]}
+                                {round.points[house as House] > 0 ? '+' : ''}{round.points[house as House] || 0}
                             </TableCell>
                             <TableCell className="text-right font-mono font-bold">{score}</TableCell>
                         </TableRow>

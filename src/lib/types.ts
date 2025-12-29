@@ -1,13 +1,14 @@
-export type House = 'House A' | 'House B' | 'House C' | 'House D' | 'House E' | 'House F';
-export const HOUSES: House[] = ['House A', 'House B', 'House C', 'House D', 'House E', 'House F'];
+export type House = 'Sundarbans' | 'Kanha' | 'Wayanad' | 'Kaziranga' | 'Corbett' | 'Bandipur' | 'Nilgiri' | 'Gir' | 'Nallamala' | 'Saranda' | 'Pichavaram' | 'Namdapha';
+export const HOUSES: House[] = ['Sundarbans', 'Kanha', 'Wayanad', 'Kaziranga', 'Corbett', 'Bandipur', 'Nilgiri', 'Gir', 'Nallamala', 'Saranda', 'Pichavaram', 'Namdapha'];
 
 export type RoundName = 'Qualifier' | 'Semi-Final 1' | 'Semi-Final 2' | 'Final';
 export const ROUND_NAMES: RoundName[] = ['Qualifier', 'Semi-Final 1', 'Semi-Final 2', 'Final'];
 
-export type Phase = 'idle' | 'words' | 'describe' | 'vote' | 'reveal' | 'summary';
+export type Phase = 'idle' | 'setup'| 'words' | 'describe' | 'vote' | 'reveal' | 'summary';
 
 export interface RoundState {
   name: RoundName;
+  participatingHouses: House[];
   traitorHouse: House | null;
   commonWord: string;
   traitorWord: string;

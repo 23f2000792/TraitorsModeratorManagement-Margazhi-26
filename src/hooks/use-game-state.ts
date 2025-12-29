@@ -12,17 +12,18 @@ const initialGameState: GameState = {
     ROUND_NAMES.map(name => [
       name,
       {
+        name: name,
+        participatingHouses: name === 'Qualifier' || name === 'Final' ? [...HOUSES] : [],
         traitorHouse: null,
         commonWord: '',
         traitorWord: '',
-        phase: 'idle',
+        phase: name.includes('Semi-Final') ? 'setup' : 'idle',
         timerEndsAt: null,
         voteOutcome: null,
         votedOutHouse: null,
         points: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
         summary: '',
         locked: false,
-        name: name,
       },
     ])
   ) as Record<RoundName, RoundState>,
@@ -34,6 +35,8 @@ export const useGameState = () => {
   const { toast } = useToast();
 
   const currentRound = gameState.rounds[gameState.currentRoundName];
+  const activeHouses = currentRound.participatingHouses;
+
 
   const updateCurrentRound = (updates: Partial<RoundState>) => {
     setGameState(prev => ({
@@ -52,12 +55,21 @@ export const useGameState = () => {
     setGameState(prev => ({ ...prev, currentRoundName: roundName }));
   };
 
+  const setParticipatingHouses = (houses: House[]) => {
+    if (!currentRound.name.includes('Semi-Final') || houses.length !== 6) {
+      toast({ title: 'Error', description: 'Must select exactly 6 houses for a semi-final.', variant: 'destructive' });
+      return;
+    }
+    updateCurrentRound({ participatingHouses: houses, phase: 'idle' });
+    toast({ title: 'Houses Set', description: `Houses for ${currentRound.name} are locked in.`});
+  };
+
   const startRound = () => {
     if (currentRound.phase !== 'idle') {
       toast({ title: 'Error', description: 'Round is already in progress.', variant: 'destructive' });
       return;
     }
-    const traitorHouse = HOUSES[Math.floor(Math.random() * HOUSES.length)];
+    const traitorHouse = activeHouses[Math.floor(Math.random() * activeHouses.length)];
     updateCurrentRound({ traitorHouse, phase: 'words' });
     toast({ title: 'Round Started', description: `${traitorHouse} is the Traitor!` });
   };
@@ -95,7 +107,7 @@ export const useGameState = () => {
     let newScoreboard = { ...gameState.scoreboard };
 
     if (outcome === 'caught') {
-      HOUSES.forEach(house => {
+        activeHouses.forEach(house => {
         if (house !== currentRound.traitorHouse) {
           roundPoints[house] = 20;
         } else {
@@ -103,10 +115,12 @@ export const useGameState = () => {
         }
       });
     } else {
-      roundPoints[currentRound.traitorHouse!] = 50;
+      if (currentRound.traitorHouse) {
+        roundPoints[currentRound.traitorHouse] = 50;
+      }
     }
 
-    HOUSES.forEach(house => {
+    activeHouses.forEach(house => {
         newScoreboard[house] += roundPoints[house];
     });
 
@@ -149,7 +163,14 @@ export const useGameState = () => {
     updateCurrentRound({ locked: true, phase: 'idle' });
      const nextRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName) + 1;
      if(nextRoundIndex < ROUND_NAMES.length) {
-        selectRound(ROUND_NAMES[nextRoundIndex]);
+        const nextRoundName = ROUND_NAMES[nextRoundIndex];
+        const nextRound = gameState.rounds[nextRoundName];
+        if (nextRound.name.includes('Semi-Final') && nextRound.participatingHouses.length === 0) {
+            setGameState(prev => ({...prev, currentRoundName: nextRoundName}));
+            updateCurrentRound({phase: 'setup'});
+        } else {
+            selectRound(nextRoundName);
+        }
      }
     toast({ title: 'Round Ended', description: 'The round is now locked.' });
   };
@@ -163,6 +184,8 @@ export const useGameState = () => {
     submitVote,
     applyScoreAdjustment,
     generateSummary,
-    endRound
+    endRound,
+    setParticipatingHouses,
+    activeHouses,
   };
 };

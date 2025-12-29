@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Eye, Play, Timer, Vote, WandSparkles, Shuffle, MinusCircle, PlusCircle, Lock } from 'lucide-react';
+import { Eye, Play, Timer, Vote, WandSparkles, Shuffle, MinusCircle, PlusCircle, Lock, Users } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
 
 type ModeratorDashboardProps = ReturnType<typeof useGameState>;
@@ -38,14 +39,20 @@ const voteSchema = z.object({
     votedOut: z.enum(HOUSES as [string, ...string[]]).nullable(),
 });
 
+const housesSchema = z.object({
+  houses: z.array(z.string()).refine(value => value.length === 6, 'You must select exactly 6 houses.'),
+});
+
+
 export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
-    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, applyScoreAdjustment, generateSummary, endRound } = props;
+    const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVote, applyScoreAdjustment, generateSummary, endRound, setParticipatingHouses, activeHouses } = props;
     const { currentRoundName, rounds, scoreboard } = gameState;
     const round = rounds[currentRoundName];
 
     const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema) });
     const timerForm = useForm<z.infer<typeof timerSchema>>({ resolver: zodResolver(timerSchema) });
     const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema) });
+    const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: [] } });
 
   return (
     <div className="p-4 md:p-6">
@@ -80,6 +87,61 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     <CardDescription>Current Phase: <span className="font-bold text-primary">{round.phase}</span> {round.locked && "(Locked)"}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {/* House Selection for Semi-Finals */}
+                    {round.phase === 'setup' && currentRoundName.includes('Semi-Final') && (
+                        <Form {...housesForm}>
+                        <form onSubmit={housesForm.handleSubmit(data => setParticipatingHouses(data.houses as House[]))} className="space-y-4">
+                            <FormField
+                            control={housesForm.control}
+                            name="houses"
+                            render={() => (
+                                <FormItem>
+                                <div className="mb-4">
+                                    <FormLabel className="text-base">Select 6 Houses for {currentRoundName}</FormLabel>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                {HOUSES.map((house) => (
+                                    <FormField
+                                    key={house}
+                                    control={housesForm.control}
+                                    name="houses"
+                                    render={({ field }) => {
+                                        return (
+                                        <FormItem
+                                            key={house}
+                                            className="flex flex-row items-start space-x-3 space-y-0"
+                                        >
+                                            <FormControl>
+                                            <Checkbox
+                                                checked={field.value?.includes(house)}
+                                                onCheckedChange={(checked) => {
+                                                return checked
+                                                    ? field.onChange([...field.value, house])
+                                                    : field.onChange(
+                                                        field.value?.filter(
+                                                        (value) => value !== house
+                                                        )
+                                                    )
+                                                }}
+                                            />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">
+                                            {house}
+                                            </FormLabel>
+                                        </FormItem>
+                                        )
+                                    }}
+                                    />
+                                ))}
+                                </div>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <Button type="submit"><Users /> Confirm Selection</Button>
+                        </form>
+                        </Form>
+                    )}
                     {/* Word Assignment */}
                     <Form {...wordsForm}>
                         <form onSubmit={wordsForm.handleSubmit((data) => setWords(data.commonWord, data.traitorWord))} className="space-y-4">
@@ -110,7 +172,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                             )}/>
                              <FormField control={voteForm.control} name="votedOut" render={({field}) => (
                                 <FormItem><FormLabel>House Voted Out (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value || ""} disabled={round.phase !== 'vote'}><FormControl><SelectTrigger><SelectValue placeholder="Select house" /></SelectTrigger></FormControl>
-                                <SelectContent>{HOUSES.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                <SelectContent>{activeHouses.map(h => <SelectItem key={h} value={h}>{h}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'vote'}><Vote/>Submit Vote</Button>
                         </form>
@@ -136,10 +198,10 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     <Table>
                         <TableHeader><TableRow><TableHead>House</TableHead><TableHead>Score</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {Object.entries(scoreboard).map(([house, score]) => (
+                            {Object.entries(scoreboard).sort(([, a], [, b]) => b - a).map(([house, score]) => (
                                 <TableRow key={house}>
                                     <TableCell className="font-medium flex items-center gap-2">
-                                      {round.traitorHouse === house && currentRoundName === round.name && <Eye className="w-4 h-4 text-destructive" />}
+                                      {round.traitorHouse === house && currentRoundName === round.name && activeHouses.includes(house as House) && <Eye className="w-4 h-4 text-destructive" />}
                                       {house}
                                     </TableCell>
                                     <TableCell>{score}</TableCell>
