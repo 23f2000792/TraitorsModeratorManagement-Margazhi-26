@@ -93,7 +93,7 @@ export const useGameState = () => {
     }
 
     updateCurrentRound(draft => { draft.phase = 'words'; });
-    toast({ title: `Round ${currentRound.currentSubRoundIndex + 1} Started`, description: `The traitor is ${currentSubRound?.traitorHouse}` });
+    toast({ title: `Round ${currentRound.currentSubRoundIndex + 1} Started`, description: `The traitor has been selected.` });
   };
   
   const setWords = (commonWord: string, traitorWord: string) => {

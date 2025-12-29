@@ -1,7 +1,7 @@
 'use client';
 
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, IndividualVote } from '@/lib/types';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Play, Timer, Vote, Shuffle, Lock, Users, Forward } from 'lucide-react';
+import { Play, Timer, Vote, Shuffle, Lock, Users, Forward, Skull } from 'lucide-react';
 import { useGameState } from '@/hooks/use-game-state';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
@@ -99,6 +99,14 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                 <CardHeader>
                     <CardTitle>{currentRoundName} {currentSubRound && `- Round ${currentSubRound.roundIndex + 1} of ${round.subRounds?.length}`}</CardTitle>
                     <CardDescription>Current Phase: <span className="font-bold text-primary">{round.phase}</span> {round.locked && "(Locked)"}</CardDescription>
+                     {currentSubRound && round.phase !== 'setup' && round.phase !== 'idle' && (
+                        <div className="!mt-4 p-3 rounded-md border border-destructive bg-destructive/10">
+                            <p className="text-sm font-medium text-destructive-foreground/80 flex items-center gap-2">
+                                <Skull className="h-4 w-4 text-destructive" />
+                                This round's Traitor is: <span className="font-bold text-lg text-destructive">{currentSubRound.traitorHouse}</span>
+                            </p>
+                        </div>
+                    )}
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {round.phase === 'setup' && (
