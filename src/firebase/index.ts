@@ -1,16 +1,8 @@
 
 'use client';
 
-import { initializeApp, getApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { firebaseConfig } from './config';
+// This file is intentionally left mostly blank.
+// The Firebase setup is currently disabled due to provisioning issues.
+// The app is using localStorage for state management as a fallback.
 
-export function initializeFirebase() {
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
-  const firestore = getFirestore(app);
-  return { app, auth, firestore };
-}
-
-export { FirebaseProvider, useFirebase } from './provider';
+export {};

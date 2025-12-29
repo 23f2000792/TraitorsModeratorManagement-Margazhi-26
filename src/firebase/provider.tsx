@@ -1,33 +1,20 @@
 
 'use client';
 
-import { createContext, useContext, ReactNode, useMemo } from 'react';
-import { FirebaseApp } from 'firebase/app';
-import { Auth } from 'firebase/auth';
-import { Firestore } from 'firebase/firestore';
-import { initializeFirebase } from './index';
+// This file is intentionally left mostly blank.
+// The Firebase setup is currently disabled due to provisioning issues.
+// The app is using localStorage for state management as a fallback.
+// The FirebaseProvider is not needed at this time.
 
-interface FirebaseContextType {
-  app: FirebaseApp;
-  auth: Auth;
-  firestore: Firestore;
-}
-
-const FirebaseContext = createContext<FirebaseContextType | null>(null);
+import { ReactNode } from 'react';
 
 export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
-  const firebase = useMemo(initializeFirebase, []);
-  return (
-    <FirebaseContext.Provider value={firebase}>
-      {children}
-    </FirebaseContext.Provider>
-  );
+  return <>{children}</>;
 };
 
-export const useFirebase = (): FirebaseContextType => {
-  const context = useContext(FirebaseContext);
-  if (!context) {
-    throw new Error('useFirebase must be used within a FirebaseProvider');
-  }
-  return context;
-};
+export const useFirebase = () => {
+    // Return a mock object or throw an error to indicate Firebase is not available.
+    // This depends on how other parts of the app handle this.
+    // For now, we return null to avoid breaking components that might try to use it.
+    return null;
+}

@@ -3,10 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { produce } from 'immer';
-import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
+import { GameState, RoundName, House, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { doc, onSnapshot, setDoc, getFirestore, getDoc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
 
 const initialEliminatedHouses: House[] = [];
 
@@ -42,53 +40,51 @@ const shuffle = (array: any[]) => {
   return array;
 };
 
-const GAME_STATE_DOC_ID = 'primary';
+const LOCAL_STORAGE_KEY = 'traitors-game-state';
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
   const [roundCompletedMessage, setRoundCompletedMessage] = useState<string | null>(null);
-  const { firestore } = useFirebase();
 
-  const updateFirestoreState = useCallback(async (newState: GameState) => {
-    if (firestore && isInitialized) {
-      try {
-        await setDoc(doc(firestore, 'gameState', GAME_STATE_DOC_ID), newState, { merge: true });
-      } catch (error) {
-        console.error("Failed to save game state to Firestore", error);
-        toast({ title: 'Connection Error', description: 'Failed to save game state. Check your connection.', variant: 'destructive'});
-      }
-    }
-  }, [firestore, toast, isInitialized]);
-
-
+  // Load state from localStorage on initial client-side render
   useEffect(() => {
-    if (firestore) {
-      const docRef = doc(firestore, 'gameState', GAME_STATE_DOC_ID);
-      
-      const unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data() as GameState;
-          setGameState(data);
-        } else {
-          // Document doesn't exist, so let's create it with the initial state
-          setDoc(docRef, initialGameState).then(() => {
-            setGameState(initialGameState);
-          });
-        }
-        if (!isInitialized) {
-          setIsInitialized(true);
-        }
-      }, (error) => {
-        console.error("Failed to subscribe to game state", error);
-        toast({ title: 'Connection Error', description: 'Could not connect to the game state. Please refresh.', variant: 'destructive'});
-        setIsInitialized(true); // Still allow the app to run with initial state
-      });
-
-      return () => unsubscribe();
+    try {
+      const savedState = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedState) {
+        setGameState(JSON.parse(savedState));
+      } else {
+        // If no saved state, initialize it
+        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(initialGameState));
+      }
+    } catch (error) {
+      console.error("Failed to load game state from localStorage", error);
     }
-  }, [firestore, toast, isInitialized]);
+    setIsInitialized(true);
+
+    // Listen for changes from other tabs
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === LOCAL_STORAGE_KEY && event.newValue) {
+        setGameState(JSON.parse(event.newValue));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const updateLocalStorageState = useCallback((newState: GameState) => {
+    try {
+      window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newState));
+    } catch (error) {
+      console.error("Failed to save game state to localStorage", error);
+      toast({ title: 'Error', description: 'Could not save game state.', variant: 'destructive'});
+    }
+  }, [toast]);
   
 
   useEffect(() => {
@@ -105,7 +101,7 @@ export const useGameState = () => {
   const updateState = (updater: (draft: GameState) => void) => {
     const newState = produce(gameState, updater);
     setGameState(newState);
-    updateFirestoreState(newState);
+    updateLocalStorageState(newState);
   };
   
   const updateCurrentRound = (updater: (draft: RoundState) => void) => {
@@ -249,4 +245,3 @@ export const useGameState = () => {
     endDescribePhase,
   };
 };
-
