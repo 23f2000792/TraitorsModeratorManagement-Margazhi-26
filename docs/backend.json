@@ -1,0 +1,43 @@
+
+{
+  "entities": {
+    "gameState": {
+      "title": "Game State",
+      "description": "Represents the entire state of the Traitors game.",
+      "type": "object",
+      "properties": {
+        "eventName": {
+          "type": "string",
+          "description": "The name of the event."
+        },
+        "currentRoundName": {
+          "type": "string",
+          "description": "The name of the current round being played."
+        },
+        "rounds": {
+          "type": "object",
+          "description": "An object containing the state for each round."
+        },
+        "eliminatedHouses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A list of houses that have been eliminated."
+        }
+      },
+      "required": ["eventName", "currentRoundName", "rounds", "eliminatedHouses"]
+    }
+  },
+  "auth": {
+    "providers": []
+  },
+  "firestore": {
+    "/gameState/{gameStateId}": {
+      "schema": {
+        "$ref": "#/backend/entities/gameState"
+      },
+      "description": "Stores the single, authoritative game state for the application."
+    }
+  }
+}

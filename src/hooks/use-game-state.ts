@@ -1,9 +1,12 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { produce } from 'immer';
 import { GameState, RoundName, House, HOUSES, ROUND_NAMES, RoundState, SubRound, VoteOutcome } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { doc, onSnapshot, setDoc, getFirestore, getDoc } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
 
 const initialEliminatedHouses: House[] = [];
 
@@ -25,7 +28,6 @@ const initialGameState: GameState = {
     ])
   ) as Record<RoundName, RoundState>,
   eliminatedHouses: initialEliminatedHouses,
-  scores: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
 };
 
 // Fisher-Yates shuffle
@@ -40,62 +42,52 @@ const shuffle = (array: any[]) => {
   return array;
 };
 
-const getInitialStateFromStorage = (): GameState => {
-    if (typeof window === 'undefined') {
-      return initialGameState;
-    }
-    try {
-      const storedState = window.localStorage.getItem('gameState');
-      return storedState ? JSON.parse(storedState) : initialGameState;
-    } catch (error) {
-      console.error("Failed to parse game state from localStorage", error);
-      return initialGameState;
-    }
-}
-
+const GAME_STATE_DOC_ID = 'primary';
 
 export const useGameState = () => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
   const [roundCompletedMessage, setRoundCompletedMessage] = useState<string | null>(null);
+  const { firestore } = useFirebase();
 
-  useEffect(() => {
-    setGameState(getInitialStateFromStorage());
-    setIsInitialized(true);
-  }, []);
-
-  useEffect(() => {
-    if (isInitialized) {
-        try {
-            const currentState = JSON.stringify(gameState);
-            if (window.localStorage.getItem('gameState') !== currentState) {
-                window.localStorage.setItem('gameState', currentState);
-                window.dispatchEvent(new StorageEvent('storage', { key: 'gameState' }));
-            }
-        } catch (error) {
-            console.error("Failed to save game state to localStorage", error);
-        }
+  const updateFirestoreState = useCallback(async (newState: GameState) => {
+    if (firestore) {
+      try {
+        await setDoc(doc(firestore, 'gameState', GAME_STATE_DOC_ID), newState, { merge: true });
+      } catch (error) {
+        console.error("Failed to save game state to Firestore", error);
+        toast({ title: 'Connection Error', description: 'Failed to save game state. Check your connection.', variant: 'destructive'});
+      }
     }
-  }, [gameState, isInitialized]);
+  }, [firestore, toast]);
 
 
   useEffect(() => {
-    const syncState = (event: StorageEvent) => {
-        if (event.key === 'gameState' && isInitialized) {
-            const newState = getInitialStateFromStorage();
-            if (JSON.stringify(newState) !== JSON.stringify(gameState)) {
-                setGameState(newState);
-            }
+    if (firestore) {
+      const docRef = doc(firestore, 'gameState', GAME_STATE_DOC_ID);
+      
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data() as GameState;
+          setGameState(data);
+        } else {
+          // Document doesn't exist, so let's create it with the initial state
+          setDoc(docRef, initialGameState).then(() => {
+            setGameState(initialGameState);
+          });
         }
-    };
+        setIsInitialized(true);
+      }, (error) => {
+        console.error("Failed to subscribe to game state", error);
+        toast({ title: 'Connection Error', description: 'Could not connect to the game state. Please refresh.', variant: 'destructive'});
+        setIsInitialized(true); // Still allow the app to run with initial state
+      });
 
-    window.addEventListener('storage', syncState);
-    return () => {
-      window.removeEventListener('storage', syncState);
-    };
-  }, [gameState, isInitialized]);
-
+      return () => unsubscribe();
+    }
+  }, [firestore, toast]);
+  
 
   useEffect(() => {
     if (roundCompletedMessage) {
@@ -109,13 +101,17 @@ export const useGameState = () => {
   const currentSubRound = currentRound?.subRounds?.[currentRound.currentSubRoundIndex];
 
   const updateCurrentRound = (updater: (draft: RoundState) => void) => {
-    setGameState(prev => produce(prev, draft => {
+    const newState = produce(gameState, draft => {
       updater(draft.rounds[draft.currentRoundName]);
-    }));
+    });
+    setGameState(newState);
+    updateFirestoreState(newState);
   };
 
   const selectRound = (roundName: RoundName) => {
-    setGameState(produce(draft => { draft.currentRoundName = roundName; }));
+    const newState = produce(gameState, draft => { draft.currentRoundName = roundName; });
+    setGameState(newState);
+    updateFirestoreState(newState);
   };
 
   const setParticipatingHouses = (houses: House[]) => {
@@ -126,21 +122,24 @@ export const useGameState = () => {
     
     const shuffledTraitors = shuffle([...houses]);
 
-    updateCurrentRound(draft => {
-        draft.participatingHouses = houses;
-        draft.phase = 'idle';
-        draft.subRounds = shuffledTraitors.map((traitor, index) => ({
-            roundIndex: index,
-            traitorHouse: traitor,
-            commonWord: '',
-            traitorWord: '',
-            wordSet: false,
-            timerEndsAt: null,
-            voteOutcome: null,
-            votedOutHouse: null,
-        }));
+    const newState = produce(gameState, draft => {
+      const round = draft.rounds[draft.currentRoundName];
+      round.participatingHouses = houses;
+      round.phase = 'idle';
+      round.subRounds = shuffledTraitors.map((traitor, index) => ({
+          roundIndex: index,
+          traitorHouse: traitor,
+          commonWord: '',
+          traitorWord: '',
+          wordSet: false,
+          timerEndsAt: null,
+          voteOutcome: null,
+          votedOutHouse: null,
+      }));
     });
 
+    setGameState(newState);
+    updateFirestoreState(newState);
     toast({ title: 'Houses Set', description: `Houses & Traitors for ${currentRound.name} are locked in.`});
   };
 
@@ -188,47 +187,53 @@ export const useGameState = () => {
   const submitVoteOutcome = (outcome: VoteOutcome) => {
     if (!currentRound || currentRound.phase !== 'vote' || !currentSubRound) return;
     
-    if (outcome === 'caught') {
-        setGameState(prev => produce(prev, draft => {
+    const newState = produce(gameState, draft => {
+        const subRound = draft.rounds[draft.currentRoundName].subRounds![draft.currentRound.currentSubRoundIndex];
+        subRound.voteOutcome = outcome;
+        draft.rounds[draft.currentRoundName].phase = 'reveal';
+        
+        if (outcome === 'caught') {
             const traitor = currentSubRound.traitorHouse;
             if (!draft.eliminatedHouses.includes(traitor)) {
                 draft.eliminatedHouses.push(traitor);
                 toast({ title: 'Traitor Eliminated!', description: `${traitor} is out of the game.` });
             }
-        }));
-    } else {
-        toast({ title: 'Traitor Survived!', description: `The Traitor was not identified.` });
-    }
-
-    updateCurrentRound(draft => {
-        const subRound = draft.subRounds![draft.currentSubRoundIndex];
-        subRound.voteOutcome = outcome;
-        draft.phase = 'reveal';
+        } else {
+            toast({ title: 'Traitor Survived!', description: `The Traitor was not identified.` });
+        }
     });
+    setGameState(newState);
+    updateFirestoreState(newState);
   };
 
   const endRound = () => {
     if (!currentRound) return;
     const nextSubRoundIndex = currentRound.currentSubRoundIndex + 1;
-    if (nextSubRoundIndex < currentRound.subRounds.length) {
-        updateCurrentRound(draft => {
-            draft.currentSubRoundIndex = nextSubRoundIndex;
-            draft.phase = 'words';
-        });
-        toast({ title: `Next Round`, description: `Moving to Round ${nextSubRoundIndex + 1}` });
-    } else { 
-        updateCurrentRound(draft => { draft.locked = true; draft.phase = 'idle'; });
-        const currentRoundIndex = ROUND_NAMES.indexOf(gameState.currentRoundName);
-        if (currentRoundIndex < ROUND_NAMES.length - 1) {
-            const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
-            setGameState(prev => produce(prev, draft => {
-                draft.currentRoundName = nextRoundName;
-                draft.rounds[nextRoundName].phase = 'setup';
-            }));
-        } else {
-            setRoundCompletedMessage("All semi-finals are complete.");
-        }
-    }
+
+    const newState = produce(gameState, draft => {
+      if (nextSubRoundIndex < currentRound.subRounds.length) {
+          const round = draft.rounds[draft.currentRoundName];
+          round.currentSubRoundIndex = nextSubRoundIndex;
+          round.phase = 'words';
+          toast({ title: `Next Round`, description: `Moving to Round ${nextSubRoundIndex + 1}` });
+      } else { 
+          draft.rounds[draft.currentRoundName].locked = true; 
+          draft.rounds[draft.currentRoundName].phase = 'idle';
+          const currentRoundIndex = ROUND_NAMES.indexOf(draft.currentRoundName);
+          if (currentRoundIndex < ROUND_NAMES.length - 1) {
+              const nextRoundName = ROUND_NAMES[currentRoundIndex + 1];
+              draft.currentRoundName = nextRoundName;
+              if (draft.rounds[nextRoundName]) {
+                  draft.rounds[nextRoundName].phase = 'setup';
+              }
+          } else {
+              setRoundCompletedMessage("All semi-finals are complete.");
+          }
+      }
+    });
+
+    setGameState(newState);
+    updateFirestoreState(newState);
   };
 
   return { 
@@ -246,3 +251,4 @@ export const useGameState = () => {
     endDescribePhase,
   };
 };
+

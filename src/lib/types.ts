@@ -1,3 +1,4 @@
+
 export type House = 'Sundarbans' | 'Kanha' | 'Wayanad' | 'Kaziranga' | 'Corbett' | 'Bandipur' | 'Nilgiri' | 'Gir' | 'Nallamala' | 'Saranda' | 'Pichavaram' | 'Namdapha';
 export const HOUSES: House[] = ['Sundarbans', 'Kanha', 'Wayanad', 'Kaziranga', 'Corbett', 'Bandipur', 'Nilgiri', 'Gir', 'Nallamala', 'Saranda', 'Pichavaram', 'Namdapha'];
 
@@ -26,9 +27,11 @@ export interface RoundState {
   subRounds: SubRound[];
   locked: boolean;
   phase: Phase;
+  timerEndsAt: number | null;
 }
 
 export interface GameState {
+  id?: string; // Firestore document ID
   eventName: string;
   currentRoundName: RoundName;
   rounds: Record<RoundName, RoundState>;
