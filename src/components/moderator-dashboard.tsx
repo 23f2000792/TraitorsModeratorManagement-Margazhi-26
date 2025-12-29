@@ -49,9 +49,9 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
     const { currentRoundName, rounds, scoreboard } = gameState;
     const round = rounds[currentRoundName];
 
-    const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema) });
-    const timerForm = useForm<z.infer<typeof timerSchema>>({ resolver: zodResolver(timerSchema) });
-    const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema) });
+    const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: '', traitorWord: '' } });
+    const timerForm = useForm<z.infer<typeof timerSchema>>({ resolver: zodResolver(timerSchema), defaultValues: { duration: 300 } });
+    const voteForm = useForm<z.infer<typeof voteSchema>>({ resolver: zodResolver(voteSchema), defaultValues: { outcome: 'caught', votedOut: null } });
     const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: [] } });
 
   return (
@@ -158,7 +158,7 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
                     <Form {...timerForm}>
                          <form onSubmit={timerForm.handleSubmit(data => startPhaseTimer(data.duration))} className="flex items-end gap-4">
                             <FormField name="duration" control={timerForm.control} render={({field}) => (
-                                <FormItem><FormLabel>Timer (seconds)</FormLabel><FormControl><Input type="number" {...field} disabled={round.phase !== 'describe'} defaultValue={300}/></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Timer (seconds)</FormLabel><FormControl><Input type="number" {...field} disabled={round.phase !== 'describe'} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <Button type="submit" disabled={round.phase !== 'describe'}><Timer/>Start Timer</Button>
                         </form>
