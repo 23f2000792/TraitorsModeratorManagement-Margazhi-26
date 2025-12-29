@@ -20,7 +20,6 @@ const initialGameState: GameState = {
         currentSubRoundIndex: 0,
         subRounds: [],
         locked: false,
-        scores: Object.fromEntries(HOUSES.map(h => [h, 0])) as Record<House, number>,
       },
     ])
   ) as Record<RoundName, RoundState>,
@@ -60,8 +59,11 @@ export const useGameState = () => {
 
   useEffect(() => {
     try {
-        window.localStorage.setItem('gameState', JSON.stringify(gameState));
-        window.dispatchEvent(new Event('storage')); // Notify other tabs
+        const currentState = JSON.stringify(gameState);
+        if (window.localStorage.getItem('gameState') !== currentState) {
+            window.localStorage.setItem('gameState', currentState);
+            window.dispatchEvent(new StorageEvent('storage', { key: 'gameState' })); // Notify other tabs
+        }
     } catch (error) {
         console.error("Failed to save game state to localStorage", error);
     }
@@ -69,15 +71,20 @@ export const useGameState = () => {
 
 
   useEffect(() => {
-    const syncState = () => {
-      setGameState(getInitialState());
+    const syncState = (event: StorageEvent) => {
+        if (event.key === 'gameState') {
+            const newState = getInitialState();
+            if (JSON.stringify(newState) !== JSON.stringify(gameState)) {
+                setGameState(newState);
+            }
+        }
     };
 
     window.addEventListener('storage', syncState);
     return () => {
       window.removeEventListener('storage', syncState);
     };
-  }, []);
+  }, [gameState]);
 
 
   useEffect(() => {
@@ -208,7 +215,7 @@ export const useGameState = () => {
                 draft.rounds[nextRoundName].phase = 'setup';
             }));
         } else {
-            setRoundCompletedMessage("The game has concluded.");
+            setRoundCompletedMessage("All semi-finals are complete.");
         }
     }
   };
