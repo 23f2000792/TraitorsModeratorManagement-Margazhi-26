@@ -23,6 +23,7 @@ import { Play, Timer, Vote, Shuffle, Lock, Users, Forward, Skull } from 'lucide-
 import { useGameState } from '@/hooks/use-game-state';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 type ModeratorDashboardProps = ReturnType<typeof useGameState>;
 
@@ -36,18 +37,20 @@ const housesSchema = z.object({
 });
 
 const voteOutcomeSchema = z.object({
-    outcome: z.enum(['caught', 'not-caught']),
+    outcome: z.enum(['caught', 'not-caught'], { required_error: "Please select an outcome." }),
 });
 
 export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
     const { gameState, selectRound, startRound, setWords, startPhaseTimer, submitVoteOutcome, endRound, setParticipatingHouses, activeHouses, currentSubRound, endDescribePhase } = props;
+    const { toast } = useToast();
     const { currentRoundName, rounds } = gameState;
     const round = rounds[currentRoundName];
 
     const wordsForm = useForm<z.infer<typeof wordsSchema>>({ resolver: zodResolver(wordsSchema), defaultValues: { commonWord: '', traitorWord: '' } });
     const housesForm = useForm<z.infer<typeof housesSchema>>({ resolver: zodResolver(housesSchema), defaultValues: { houses: round.participatingHouses || [] } });
-    const voteOutcomeForm = useForm<z.infer<typeof voteOutcomeSchema>>();
+    const voteOutcomeForm = useForm<z.infer<typeof voteOutcomeSchema>>({ resolver: zodResolver(voteOutcomeSchema) });
 
+    const { formState: { isValid: isVoteFormValid } } = voteOutcomeForm;
 
     useEffect(() => {
         wordsForm.reset({
@@ -56,6 +59,10 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
         });
     }, [currentSubRound, wordsForm]);
 
+    const handleVoteSubmit = (data: z.infer<typeof voteOutcomeSchema>) => {
+        submitVoteOutcome(data.outcome as VoteOutcome);
+        voteOutcomeForm.reset();
+    };
 
   return (
     <div className="p-4 md:p-6">
@@ -185,14 +192,14 @@ export const ModeratorDashboard = (props: ModeratorDashboardProps) => {
 
                     {round.phase === 'vote' && (
                         <Form {...voteOutcomeForm}>
-                            <form onSubmit={voteOutcomeForm.handleSubmit(data => submitVoteOutcome(data.outcome as VoteOutcome))} className="space-y-4">
+                            <form onSubmit={voteOutcomeForm.handleSubmit(handleVoteSubmit)} className="space-y-4">
                                 <FormField
                                     control={voteOutcomeForm.control}
                                     name="outcome"
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Declare Vote Outcome</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value || ''}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select vote outcome..." /></SelectTrigger></FormControl>
                                                 <SelectContent>
                                                     <SelectItem value="caught">Traitor Caught</SelectItem>

@@ -34,7 +34,7 @@ const PhaseDisplay = ({ gameState }: { gameState: GameState }) => {
         }
         return (
             <div className="text-center flex flex-col items-center gap-8 animate-fade-in-up">
-                <Image src="/poster.jpg" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-2xl shadow-primary/20 border-4 border-primary" data-ai-hint="game poster" />
+                <Image src="https://ik.imagekit.io/qaugsnc1c/The%20Traitors.png" alt="The Traitors Poster" width={300} height={420} className="rounded-lg shadow-2xl shadow-primary/20 border-4 border-primary" data-ai-hint="game poster" />
                 <p className="text-2xl text-accent animate-pulse mt-4">The game is about to begin...</p>
             </div>
         );
